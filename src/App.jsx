@@ -4,7 +4,19 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 const CITY = "Saint-Germain-lès-Arpajon (91180)";
 const LAT = 48.616;
 const LON = 2.258;
-const STORAGE = "potager_v224_game_builder";
+const STORAGE = "potager_v23_plan_minimaliste";
+
+const structures = {
+  empty: { label: "Vide", icon: "", color: "#f8fafc", border: "#cbd5e1", cultivable: false },
+  soil: { label: "Potager", icon: "🪴", color: "#fef3c7", border: "#d97706", cultivable: true },
+  greenhouse: { label: "Serre", icon: "🏕️", color: "#ccfbf1", border: "#0f766e", cultivable: true },
+  lawn: { label: "Pelouse", icon: "🟩", color: "#dcfce7", border: "#22c55e", cultivable: false },
+  path: { label: "Allée", icon: "🪨", color: "#e7e5e4", border: "#78716c", cultivable: false },
+  terrace: { label: "Terrasse", icon: "🟫", color: "#e7d3c4", border: "#9a6c44", cultivable: false },
+  wall: { label: "Mur", icon: "🧱", color: "#dbe4ee", border: "#64748b", cultivable: false },
+  fence: { label: "Clôture", icon: "🪵", color: "#edd7c0", border: "#8b5a2b", cultivable: false },
+  shade: { label: "Ombre", icon: "🌳", color: "#dbeafe", border: "#2563eb", cultivable: false },
+};
 
 const plants = {
   tomate: { name: "Tomate", icon: "🍅", color: "#ef4444", water: 1.2, yield: 3, sunNeed: 3 },
@@ -13,39 +25,33 @@ const plants = {
   poivron: { name: "Poivron", icon: "🫑", color: "#f59e0b", water: 0.8, yield: 1, sunNeed: 3 },
   salade: { name: "Salade", icon: "🥬", color: "#84cc16", water: 0.5, yield: 0.3, sunNeed: 1 },
   basilic: { name: "Basilic", icon: "🌿", color: "#22c55e", water: 0.4, yield: 0.2, sunNeed: 2 },
-  persil: { name: "Persil", icon: "🌱", color: "#16a34a", water: 0.3, yield: 0.2, sunNeed: 1 },
+  persil: { name: "Persil", icon: "🌱", color: "#15803d", water: 0.3, yield: 0.2, sunNeed: 1 },
   fleurs: { name: "Fleurs utiles", icon: "🌼", color: "#fde047", water: 0.2, yield: 0, sunNeed: 2 },
 };
 
-const slotKinds = {
-  plant: { label: "Culture", icon: "🪴", color: "#ffffff" },
-  greenhouse: { label: "Serre", icon: "🏕️", color: "#99f6e4" },
-  lawn: { label: "Pelouse", icon: "🟩", color: "#86efac" },
-  path: { label: "Allée", icon: "🪨", color: "#d6d3d1" },
-  border: { label: "Bordure", icon: "🪵", color: "#cbd5e1" },
-  shade: { label: "Ombre", icon: "🌳", color: "#64748b" },
-  empty: { label: "Vide", icon: "⬜", color: "#eef2f7" },
-};
-
 const presets = [
-  { key: "3x3", label: "3×3", rows: 3, cols: 3 },
   { key: "3x4", label: "3×4", rows: 3, cols: 4 },
-  { key: "4x4", label: "4×4", rows: 4, cols: 4 },
   { key: "4x6", label: "4×6", rows: 4, cols: 6 },
-  { key: "5x5", label: "5×5", rows: 5, cols: 5 },
   { key: "5x8", label: "5×8", rows: 5, cols: 8 },
-  { key: "6x6", label: "6×6", rows: 6, cols: 6 },
   { key: "6x10", label: "6×10", rows: 6, cols: 10 },
-  { key: "8x8", label: "8×8", rows: 8, cols: 8 },
-  { key: "12x6", label: "12×6", rows: 12, cols: 6 },
+  { key: "8x12", label: "8×12", rows: 8, cols: 12 },
+  { key: "10x12", label: "10×12", rows: 10, cols: 12 },
+  { key: "long", label: "Longueur 4×12", rows: 4, cols: 12 },
+  { key: "square", label: "Grand carré 8×8", rows: 8, cols: 8 },
 ];
 
-const quickKinds = ["plant", "greenhouse", "lawn", "path", "border", "shade"];
-const exposureSteps = [
-  { key: "ombre", label: "Ombré", sun: 0 },
-  { key: "frais", label: "Frais", sun: 1 },
-  { key: "equilibre", label: "Équilibré", sun: 2 },
-  { key: "chaud", label: "Très ensoleillé", sun: 3 },
+const structureOrder = ["soil", "greenhouse", "lawn", "path", "terrace", "wall", "fence", "shade", "empty"];
+const plantOrder = ["tomate", "tomateCerise", "piment", "poivron", "salade", "basilic", "persil", "fleurs"];
+const sunOptions = [
+  { value: 0, label: "Ombre" },
+  { value: 1, label: "Frais" },
+  { value: 2, label: "Équilibré" },
+  { value: 3, label: "Très ensoleillé" },
+];
+const tabs = [
+  { key: "plan", label: "Plan", icon: "🗺️" },
+  { key: "assistant", label: "Assistant", icon: "🧭" },
+  { key: "follow", label: "Suivi", icon: "⏰" },
 ];
 
 const actionTemplates = {
@@ -58,7 +64,7 @@ const actionTemplates = {
         title: "Contrôler la levée",
         average: "5 à 10 jours",
         signs: ["premières pousses", "substrat humide", "levée homogène"],
-        advice: "Garder humide et lumineux sans détremper.",
+        advice: "Maintenir humide et lumineux sans détremper.",
       },
       {
         offset: 14,
@@ -82,7 +88,7 @@ const actionTemplates = {
       },
       {
         offset: 7,
-        title: "Valider reprise visible",
+        title: "Valider la reprise visible",
         average: "5 à 8 jours",
         signs: ["nouvelle pousse", "tige stable", "croissance repart"],
         advice: "Ajuster lumière et espacement si besoin.",
@@ -131,17 +137,11 @@ const actionTemplates = {
         title: "Vérifier nouvelle récolte",
         average: "3 à 7 jours",
         signs: ["nouveaux fruits", "floraison active", "feuillage sain"],
-        advice: "Continuer entretien et récolter régulièrement.",
+        advice: "Continuer l’entretien et récolter régulièrement.",
       },
     ],
   },
 };
-
-const tabs = [
-  { key: "plan", label: "Plan", icon: "🗺️" },
-  { key: "assistant", label: "Assistant", icon: "🧭" },
-  { key: "follow", label: "Suivi", icon: "⏰" },
-];
 
 function safeRead(key, fallback) {
   try {
@@ -160,12 +160,8 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function addDaysISO(dateStr, offset) {
-  const d = new Date(dateStr || today());
+  const d = new Date(dateStr || new Date().toISOString());
   d.setDate(d.getDate() + offset);
   return d.toISOString();
 }
@@ -178,12 +174,12 @@ function formatDate(value) {
   }
 }
 
-function small(text, limit = 15) {
+function small(text, limit = 14) {
   if (!text) return "";
   return text.length <= limit ? text : `${text.slice(0, limit - 1)}…`;
 }
 
-function getInputStyle() {
+function fieldStyle() {
   return {
     width: "100%",
     borderRadius: 12,
@@ -195,10 +191,6 @@ function getInputStyle() {
     minHeight: 42,
     background: "#fff",
   };
-}
-
-function getAreaStyle() {
-  return { ...getInputStyle(), minHeight: 88, resize: "vertical", fontFamily: "Arial, sans-serif" };
 }
 
 function button(bg, color = "#fff") {
@@ -215,58 +207,47 @@ function button(bg, color = "#fff") {
   };
 }
 
-function ghost(active = false) {
+function softButton(active = false) {
   return {
     background: active ? "#e0e7ff" : "#fff",
     color: "#111827",
-    border: active ? "2px solid #111827" : "1px solid #d1d5db",
+    border: `1px solid ${active ? "#6366f1" : "#d1d5db"}`,
     borderRadius: 12,
     padding: "10px 12px",
     fontWeight: 700,
     cursor: "pointer",
-    minHeight: 42,
+    minHeight: 40,
   };
 }
 
-function floatingButton(active = false) {
+function chipStyle(active, accent = "#111827") {
   return {
-    background: active ? "#111827" : "rgba(255,255,255,0.9)",
-    color: active ? "#fff" : "#111827",
-    border: "1px solid rgba(15,23,42,0.10)",
-    borderRadius: 12,
-    padding: "10px 12px",
+    background: active ? "#eef2ff" : "#fff",
+    color: "#111827",
+    border: `1px solid ${active ? accent : "#d1d5db"}`,
+    borderRadius: 999,
+    padding: "7px 10px",
     fontWeight: 700,
     cursor: "pointer",
-    minHeight: 42,
-    backdropFilter: "blur(8px)",
+    fontSize: 13,
+    whiteSpace: "nowrap",
   };
 }
 
-function compactTool(active = false, color = "#111827") {
+function miniAction(active = false) {
   return {
-    background: active ? color : "#fff",
+    background: active ? "#111827" : "#fff",
     color: active ? "#fff" : "#111827",
-    border: active ? "1px solid transparent" : "1px solid #d1d5db",
-    borderRadius: 12,
+    border: "1px solid #d1d5db",
+    borderRadius: 10,
     padding: "8px 10px",
     fontWeight: 700,
     cursor: "pointer",
-    minHeight: 38,
-    fontSize: 13,
-    boxShadow: active ? "0 8px 18px rgba(15,23,42,0.10)" : "none",
+    minHeight: 36,
   };
 }
 
 function cardStyle() {
-  return {
-    background: "#fff",
-    borderRadius: 20,
-    padding: 16,
-    boxShadow: "0 12px 28px rgba(15,23,42,0.08)",
-  };
-}
-
-function metricStyle() {
   return {
     background: "#fff",
     borderRadius: 18,
@@ -275,197 +256,109 @@ function metricStyle() {
   };
 }
 
-function makeSlot(extra = {}) {
+function createCell(overrides = {}) {
   return {
     id: uid(),
-    kind: "empty",
+    structure: "empty",
     plant: "",
-    label: "",
     count: 0,
     sun: 2,
-    exposure: "equilibre",
     note: "",
-    ...extra,
+    actions: [],
+    reminders: [],
+    ...overrides,
   };
 }
 
-function buildGrid(rows, cols) {
-  return Array.from({ length: rows * cols }, () => makeSlot());
+function createGrid(rows, cols) {
+  return Array.from({ length: rows * cols }, () => createCell());
 }
 
-function createPotager(name = "Potager principal") {
+function createPlan(name = "Potager principal", rows = 5, cols = 8) {
   return {
     id: uid(),
     name,
-    rows: 4,
-    cols: 4,
-    slots: buildGrid(4, 4),
-    reminders: [],
-    actions: [],
-    diagnosis: {
-      photoDataUrl: "",
-      photoName: "",
-      orientation: "south",
-      brightSide: "south",
-      shadeSide: "north",
-      windSide: "west",
-      confidence: "moyenne",
-      note: "",
-    },
+    rows,
+    cols,
+    cells: createGrid(rows, cols),
+    orientation: "south",
+    brightSide: "south",
+    shadySide: "north",
+    diagnosisNote: "",
+    photoDataUrl: "",
+    zoom: 100,
+    backgroundValidated: false,
   };
 }
 
-function resizeGrid(slots, oldRows, oldCols, newRows, newCols) {
-  const next = buildGrid(newRows, newCols);
-  for (let r = 0; r < Math.min(oldRows, newRows); r += 1) {
-    for (let c = 0; c < Math.min(oldCols, newCols); c += 1) {
-      next[r * newCols + c] = { ...slots[r * oldCols + c] };
-    }
-  }
-  return next;
-}
-
-function normalizePotager(raw, index = 0) {
-  const rows = clamp(Number(raw?.rows || 4), 2, 16);
-  const cols = clamp(Number(raw?.cols || 4), 2, 16);
-  const baseSlots = Array.isArray(raw?.slots) ? raw.slots : buildGrid(rows, cols);
-  const slots = resizeGrid(
-    baseSlots.map((slot) =>
-      makeSlot({
-        kind: slotKinds[slot?.kind] ? slot.kind : "empty",
-        plant: plants[slot?.plant] ? slot.plant : "",
-        label: slot?.label || "",
-        count: Number(slot?.count || 0),
-        sun: clamp(Number(slot?.sun ?? 2), 0, 3),
-        exposure: exposureSteps.some((x) => x.key === slot?.exposure) ? slot.exposure : "equilibre",
-        note: slot?.note || "",
-      })
-    ),
-    rows,
-    cols,
-    rows,
-    cols
-  );
-
+function normalizePlan(raw, index = 0) {
+  const rows = clamp(Number(raw?.rows || 5), 2, 20);
+  const cols = clamp(Number(raw?.cols || 8), 2, 20);
+  const expected = rows * cols;
+  const rawCells = Array.isArray(raw?.cells) ? raw.cells : [];
+  const cells = Array.from({ length: expected }, (_, i) => {
+    const source = rawCells[i] || {};
+    const structure = structures[source.structure] ? source.structure : "empty";
+    const cultivable = structures[structure].cultivable;
+    return createCell({
+      id: source.id || uid(),
+      structure,
+      plant: cultivable && plants[source.plant] ? source.plant : "",
+      count: cultivable ? Math.max(0, Number(source.count || 0)) : 0,
+      sun: clamp(Number(source.sun ?? 2), 0, 3),
+      note: source.note || "",
+      actions: Array.isArray(source.actions) ? source.actions : [],
+      reminders: Array.isArray(source.reminders) ? source.reminders : [],
+    });
+  });
   return {
     id: raw?.id || uid(),
     name: raw?.name || `Potager ${index + 1}`,
     rows,
     cols,
-    slots,
-    reminders: Array.isArray(raw?.reminders) ? raw.reminders : [],
-    actions: Array.isArray(raw?.actions) ? raw.actions : [],
-    diagnosis: {
-      photoDataUrl: raw?.diagnosis?.photoDataUrl || "",
-      photoName: raw?.diagnosis?.photoName || "",
-      orientation: ["north", "south", "east", "west"].includes(raw?.diagnosis?.orientation) ? raw.diagnosis.orientation : "south",
-      brightSide: ["north", "south", "east", "west"].includes(raw?.diagnosis?.brightSide) ? raw.diagnosis.brightSide : "south",
-      shadeSide: ["north", "south", "east", "west"].includes(raw?.diagnosis?.shadeSide) ? raw.diagnosis.shadeSide : "north",
-      windSide: ["north", "south", "east", "west"].includes(raw?.diagnosis?.windSide) ? raw.diagnosis.windSide : "west",
-      confidence: raw?.diagnosis?.confidence || "moyenne",
-      note: raw?.diagnosis?.note || "",
-    },
+    cells,
+    orientation: ["north", "south", "east", "west"].includes(raw?.orientation)
+      ? raw.orientation
+      : "south",
+    brightSide: ["north", "south", "east", "west"].includes(raw?.brightSide)
+      ? raw.brightSide
+      : "south",
+    shadySide: ["north", "south", "east", "west"].includes(raw?.shadySide)
+      ? raw.shadySide
+      : "north",
+    diagnosisNote: raw?.diagnosisNote || "",
+    photoDataUrl: raw?.photoDataUrl || "",
+    zoom: clamp(Number(raw?.zoom || 100), 55, 150),
+    backgroundValidated: Boolean(raw?.backgroundValidated),
   };
 }
 
-function getInitialData() {
-  const fallback = createPotager("Potager principal");
+function getInitialState() {
+  const fallback = createPlan();
   const saved = safeRead(STORAGE, null);
-  if (!saved?.potagers?.length) {
-    return { potagers: [fallback], activePotagerId: fallback.id };
+  if (!saved?.plans?.length) {
+    return { plans: [fallback], activePlanId: fallback.id };
   }
-  const potagers = saved.potagers.map((x, i) => normalizePotager(x, i));
-  const activePotagerId = potagers.some((x) => x.id === saved.activePotagerId) ? saved.activePotagerId : potagers[0].id;
-  return { potagers, activePotagerId };
-}
-
-function getOrientationText(side) {
-  if (side === "north") return "Nord";
-  if (side === "south") return "Sud";
-  if (side === "east") return "Est";
-  return "Ouest";
-}
-
-function sideStrength(side, rowRatio, colRatio) {
-  if (side === "south") return rowRatio;
-  if (side === "north") return 1 - rowRatio;
-  if (side === "east") return colRatio;
-  return 1 - colRatio;
-}
-
-function computeSuggestedSun(index, rows, cols, diagnosis) {
-  const row = Math.floor(index / cols);
-  const col = index % cols;
-  const rowRatio = rows <= 1 ? 0.5 : row / (rows - 1);
-  const colRatio = cols <= 1 ? 0.5 : col / (cols - 1);
-  const bright = sideStrength(diagnosis?.brightSide || "south", rowRatio, colRatio);
-  const shade = sideStrength(diagnosis?.shadeSide || "north", rowRatio, colRatio);
-  const wind = sideStrength(diagnosis?.windSide || "west", rowRatio, colRatio);
-  const raw = 1.2 + bright * 2.1 - shade * 1.3 - wind * 0.3;
-  return clamp(Math.round(raw), 0, 3);
-}
-
-function rankPlantsForSlot(index, rows, cols, diagnosis, weather) {
-  const suggestedSun = computeSuggestedSun(index, rows, cols, diagnosis);
-  return Object.entries(plants)
-    .map(([key, plant]) => {
-      let score = 100 - Math.abs(plant.sunNeed - suggestedSun) * 25;
-      if (weather?.temperature >= 28 && suggestedSun >= 3 && (key === "salade" || key === "persil")) score -= 15;
-      if (weather?.temperature <= 7 && (key === "piment" || key === "poivron" || key === "basilic")) score -= 10;
-      if (diagnosis?.windSide && suggestedSun >= 3 && (key === "tomate" || key === "piment" || key === "poivron")) score += 2;
-      return { key, score, suggestedSun };
-    })
-    .sort((a, b) => b.score - a.score);
-}
-
-function getSuggestionForSlot(index, potager, weather, draft) {
-  const suggestedSun = computeSuggestedSun(index, potager.rows, potager.cols, potager.diagnosis);
-  const ranked = rankPlantsForSlot(index, potager.rows, potager.cols, potager.diagnosis, weather);
-  const best = ranked[0];
-  const draftPlant = draft?.kind === "plant" && draft?.plant ? plants[draft.plant] : null;
-  let verdict = "zone correcte";
-  let detail = `Cette zone semble proche de ${suggestedSun}/3 en soleil.`;
-  if (draftPlant) {
-    const diff = draftPlant.sunNeed - suggestedSun;
-    if (diff >= 2) verdict = "trop peu de soleil";
-    else if (diff === 1) verdict = "plutôt juste";
-    else if (diff <= -1) verdict = "plus ensoleillé que nécessaire";
-    else verdict = "très cohérent";
-    detail = `${draftPlant.name} aime ${draftPlant.sunNeed}/3. Ici, l'estimation est ${suggestedSun}/3.`;
-  } else {
-    detail = `La meilleure culture probable ici : ${plants[best.key].name}.`;
-  }
-  return {
-    suggestedSun,
-    bestKeys: ranked.slice(0, 3).map((x) => x.key),
-    verdict,
-    detail,
-  };
-}
-
-function getPlanBackgroundThumbnail(slots, cols) {
-  const colors = slots.slice(0, 40).map((slot) => {
-    if (slot.kind === "plant" && plants[slot.plant]) return plants[slot.plant].color;
-    return slotKinds[slot.kind]?.color || slotKinds.empty.color;
-  });
-  return `linear-gradient(135deg, ${colors.join(", ")})`;
-}
-
-function Metric({ icon, label, value, subtitle }) {
-  return (
-    <div style={metricStyle()}>
-      <div style={{ fontSize: 28 }}>{icon}</div>
-      <div style={{ color: "#6b7280", marginTop: 4, fontSize: 13 }}>{label}</div>
-      <div style={{ fontWeight: 800, fontSize: 30, marginTop: 6 }}>{value}</div>
-      <div style={{ color: "#6b7280", fontSize: 13, marginTop: 4 }}>{subtitle}</div>
-    </div>
-  );
+  const plans = saved.plans.map((plan, index) => normalizePlan(plan, index));
+  const activePlanId = plans.some((plan) => plan.id === saved.activePlanId)
+    ? saved.activePlanId
+    : plans[0].id;
+  return { plans, activePlanId };
 }
 
 function Card({ title, right, children }) {
   return (
     <div style={cardStyle()}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap",
+          marginBottom: 14,
+        }}
+      >
         <h3 style={{ margin: 0, fontSize: 20 }}>{title}</h3>
         {right}
       </div>
@@ -474,405 +367,98 @@ function Card({ title, right, children }) {
   );
 }
 
-function StepPill({ index, current, label }) {
-  return (
-    <div style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 8,
-      padding: "6px 10px",
-      borderRadius: 999,
-      background: current === index ? "#111827" : "#f3f4f6",
-      color: current === index ? "#fff" : "#111827",
-      fontWeight: 700,
-      fontSize: 12,
-    }}>
-      <span>{index + 1}</span>
-      <span>{label}</span>
-    </div>
-  );
+function sideToFrench(side) {
+  if (side === "north") return "Nord";
+  if (side === "south") return "Sud";
+  if (side === "east") return "Est";
+  return "Ouest";
 }
 
-// Repère 2/6 — éditeur flottant et mini composants
-function SlotChip({ active, icon, label, onClick, color }) {
-  return (
-    <button onClick={onClick} style={{
-      ...ghost(active),
-      display: "flex",
-      alignItems: "center",
-      gap: 8,
-      justifyContent: "center",
-      width: "100%",
-      background: active ? color || "#e0e7ff" : "#fff",
-    }}>
-      <span>{icon}</span>
-      <span>{label}</span>
-    </button>
-  );
+function sunLabel(value) {
+  return sunOptions.find((item) => item.value === value)?.label || "Équilibré";
 }
 
-function PlantBadge({ plantKey, active, onClick }) {
-  const plant = plants[plantKey];
-  return (
-    <button onClick={onClick} style={{
-      ...ghost(active),
-      display: "flex",
-      alignItems: "center",
-      gap: 8,
-      background: active ? plant.color : "#fff",
-      color: active ? "#111827" : "#111827",
-      width: "100%",
-      justifyContent: "center",
-    }}>
-      <span>{plant.icon}</span>
-      <span>{plant.name}</span>
-    </button>
-  );
+function isLateReminder(reminder) {
+  return !reminder.done && new Date(reminder.dueDate) < new Date(new Date().toDateString());
 }
 
-function SunDots({ sun }) {
-  return (
-    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-      {[0, 1, 2, 3].map((i) => (
-        <span key={i} style={{
-          width: 8,
-          height: 8,
-          borderRadius: 999,
-          background: i <= sun - 1 ? "#f59e0b" : "#d1d5db",
-          display: "inline-block",
-        }} />
-      ))}
-    </div>
-  );
+function isTodayReminder(reminder) {
+  const todayStr = new Date().toDateString();
+  return !reminder.done && new Date(reminder.dueDate).toDateString() === todayStr;
 }
 
-function CompactPalette({
-  mobile,
-  paintMode,
-  setPaintMode,
-  draft,
-  setDraft,
-  selectedSlot,
-  onTakeSelected,
-  onEditSelected,
-}) {
-  const favoritePlants = ["tomate", "piment", "salade", "basilic"];
-  return (
-    <div style={{
-      position: "sticky",
-      top: 0,
-      zIndex: 12,
-      display: "grid",
-      gap: 10,
-      padding: 10,
-      borderRadius: 18,
-      border: "1px solid rgba(15,23,42,0.08)",
-      background: "rgba(255,255,255,0.92)",
-      backdropFilter: "blur(10px)",
-      boxShadow: "0 12px 28px rgba(15,23,42,0.08)",
-      marginBottom: 12,
-    }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <div style={{ fontWeight: 800 }}>Palette rapide</div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={() => setPaintMode(false)} style={compactTool(!paintMode, "#111827")}>✏️ Éditer</button>
-          <button onClick={() => setPaintMode(true)} style={compactTool(paintMode, "#2563eb")}>🎨 Peindre</button>
-          {selectedSlot ? <button onClick={onTakeSelected} style={compactTool(false)}>📋 Prendre modèle</button> : null}
-          {selectedSlot ? <button onClick={onEditSelected} style={compactTool(false)}>🛠 Modifier</button> : null}
-        </div>
-      </div>
-
-      <div style={{ display: "grid", gap: 8 }}>
-        <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>1. Type de case</div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {quickKinds.map((key) => (
-            <button
-              key={key}
-              onClick={() => setDraft((prev) => ({
-                ...prev,
-                kind: key,
-                plant: key === "plant" ? (prev.plant || "tomate") : "",
-                count: key === "plant" ? Math.max(1, Number(prev.count || 1)) : 0,
-                label: key === "plant" ? (prev.label && plants[prev.plant] ? prev.label : plants[prev.plant || "tomate"].name) : slotKinds[key].label,
-              }))}
-              style={compactTool(draft.kind === key, "#0f766e")}
-            >
-              {slotKinds[key].icon} {slotKinds[key].label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {draft.kind === "plant" ? (
-        <div style={{ display: "grid", gap: 8 }}>
-          <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>2. Culture favorite</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {favoritePlants.map((key) => (
-              <button key={key} onClick={() => setDraft((prev) => ({ ...prev, plant: key, label: plants[key].name }))} style={compactTool(draft.plant === key, plants[key].color)}>
-                {plants[key].icon} {plants[key].name}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      <div style={{ display: "grid", gap: 8 }}>
-        <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>3. Soleil et quantité</div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          {exposureSteps.map((item) => (
-            <button key={item.key} onClick={() => setDraft((prev) => ({ ...prev, exposure: item.key, sun: item.sun }))} style={compactTool(draft.exposure === item.key, "#f59e0b")}>
-              {item.label}
-            </button>
-          ))}
-          {draft.kind === "plant" ? (
-            <>
-              {[1,2,4,6].map((n) => (
-                <button key={n} onClick={() => setDraft((prev) => ({ ...prev, count: n }))} style={compactTool(draft.count === n)}>{n} plants</button>
-              ))}
-            </>
-          ) : null}
-        </div>
-      </div>
-
-      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <div style={{ fontSize: 12, color: "#6b7280" }}>
-          {paintMode ? "Mode pinceau actif : clique une case pour poser immédiatement le modèle." : "Mode édition : clique une case pour ouvrir l’éditeur flottant."}
-        </div>
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, borderRadius: 999, background: "#f8fafc", padding: "6px 10px", border: "1px solid #e5e7eb" }}>
-          <span style={{ fontSize: 20 }}>{draft.kind === "plant" ? plants[draft.plant]?.icon : slotKinds[draft.kind]?.icon}</span>
-          <strong style={{ fontSize: 13 }}>{draft.kind === "plant" ? plants[draft.plant]?.name : slotKinds[draft.kind]?.label}</strong>
-          {draft.kind === "plant" ? <span style={{ fontSize: 12, color: "#6b7280" }}>× {draft.count}</span> : null}
-          <SunDots sun={draft.sun} />
-        </div>
-      </div>
-    </div>
-  );
+function getCellCoords(index, cols) {
+  return { row: Math.floor(index / cols), col: index % cols };
 }
 
-function FloatingBuilder({
-  open,
-  mobile,
-  draft,
-  setDraft,
-  step,
-  setStep,
-  onApply,
-  onCancel,
-  onClear,
-  suggestion,
-  anchor,
-  slotFilled,
-}) {
-  if (!open) return null;
-
-  const panelWidth = mobile ? "calc(100vw - 24px)" : 340;
-  const floatingStyle = mobile
-    ? {
-        position: "fixed",
-        left: 12,
-        right: 12,
-        bottom: 12,
-        zIndex: 60,
-        maxHeight: "78vh",
-        overflow: "auto",
-      }
-    : {
-        position: "absolute",
-        left: anchor.left,
-        top: anchor.top,
-        zIndex: 50,
-        width: panelWidth,
-        maxHeight: 540,
-        overflow: "auto",
-      };
-
-  const kindChosen = draft.kind && draft.kind !== "empty";
-  const plantNeeded = draft.kind === "plant";
-  const canGoToStep2 = kindChosen;
-  const canGoToStep3 = !plantNeeded || !!draft.plant;
-  const canFinish = canGoToStep3 && typeof draft.sun === "number";
-
-  return (
-    <div style={{ ...floatingStyle, background: "#fff", borderRadius: 20, boxShadow: "0 18px 60px rgba(0,0,0,0.18)", border: "1px solid rgba(15,23,42,0.08)" }}>
-      <div style={{ padding: 14, borderBottom: "1px solid #e5e7eb", position: "sticky", top: 0, background: "#fff", zIndex: 2 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "start" }}>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 18 }}>{slotFilled ? "Modifier cette case" : "Créer cette case"}</div>
-            <div style={{ color: "#6b7280", fontSize: 13, marginTop: 4 }}>Tu peux soit régler ici, soit peindre directement avec la palette compacte.</div>
-          </div>
-          <button onClick={onCancel} style={ghost(false)}>Fermer</button>
-        </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
-          {["Type", "Culture", "Exposition", "Placement"].map((label, index) => (
-            <StepPill key={label} index={index} current={step} label={label} />
-          ))}
-        </div>
-      </div>
-
-      <div style={{ padding: 14, display: "grid", gap: 14 }}>
-        {step === 0 ? (
-          <div style={{ display: "grid", gap: 10 }}>
-            <div style={{ fontWeight: 700 }}>1. Quel genre de case veux-tu créer ?</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
-              {quickKinds.map((key) => (
-                <SlotChip
-                  key={key}
-                  active={draft.kind === key}
-                  icon={slotKinds[key].icon}
-                  label={slotKinds[key].label}
-                  color={slotKinds[key].color}
-                  onClick={() => setDraft((prev) => ({
-                    ...prev,
-                    kind: key,
-                    plant: key === "plant" ? (prev.plant || "tomate") : "",
-                    count: key === "plant" ? Math.max(1, Number(prev.count || 1)) : 0,
-                    label: prev.label || (key === "plant" ? "" : slotKinds[key].label),
-                  }))}
-                />
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {step === 1 ? (
-          <div style={{ display: "grid", gap: 10 }}>
-            <div style={{ fontWeight: 700 }}>
-              {plantNeeded ? "2. Quelle culture mets-tu ici ?" : "2. Nom ou note rapide de la case"}
-            </div>
-            {plantNeeded ? (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
-                {Object.keys(plants).map((key) => (
-                  <PlantBadge key={key} plantKey={key} active={draft.plant === key} onClick={() => setDraft((prev) => ({ ...prev, plant: key, label: prev.label || plants[key].name }))} />
-                ))}
-              </div>
-            ) : (
-              <div style={{ display: "grid", gap: 10 }}>
-                <input value={draft.label} onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))} style={getInputStyle()} placeholder={`Exemple : ${slotKinds[draft.kind].label}`} />
-                <textarea value={draft.note} onChange={(e) => setDraft((prev) => ({ ...prev, note: e.target.value }))} style={getAreaStyle()} placeholder="Détail utile si besoin..." />
-              </div>
-            )}
-          </div>
-        ) : null}
-
-        {step === 2 ? (
-          <div style={{ display: "grid", gap: 10 }}>
-            <div style={{ fontWeight: 700 }}>3. Quelle exposition pour cette case ?</div>
-            <div style={{ display: "grid", gap: 10 }}>
-              {exposureSteps.map((item) => (
-                <button
-                  key={item.key}
-                  onClick={() => setDraft((prev) => ({ ...prev, exposure: item.key, sun: item.sun }))}
-                  style={{ ...ghost(draft.exposure === item.key), display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                >
-                  <span>{item.label}</span>
-                  <SunDots sun={item.sun} />
-                </button>
-              ))}
-            </div>
-            {draft.kind === "plant" ? (
-              <div style={{ display: "grid", gap: 8 }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>Combien de plants ?</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
-                  {[1, 2, 3, 4, 6, 8, 10, 12].map((value) => (
-                    <button key={value} onClick={() => setDraft((prev) => ({ ...prev, count: value }))} style={ghost(draft.count === value)}>
-                      {value}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
-        {step === 3 ? (
-          <div style={{ display: "grid", gap: 10 }}>
-            <div style={{ fontWeight: 700 }}>4. Vérifie puis place</div>
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 12, background: "#f8fafc" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ fontSize: 32 }}>
-                  {draft.kind === "plant" ? plants[draft.plant]?.icon : slotKinds[draft.kind]?.icon}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 800 }}>
-                    {draft.kind === "plant" ? (draft.label || plants[draft.plant]?.name) : (draft.label || slotKinds[draft.kind]?.label)}
-                  </div>
-                  <div style={{ color: "#6b7280", fontSize: 13 }}>
-                    {draft.kind === "plant" ? `${plants[draft.plant]?.name} • ${draft.count} plants` : slotKinds[draft.kind]?.label}
-                  </div>
-                </div>
-              </div>
-              <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                <span style={{ color: "#6b7280", fontSize: 13 }}>Exposition</span>
-                <SunDots sun={draft.sun} />
-              </div>
-              {draft.note ? <div style={{ marginTop: 8, fontSize: 13, color: "#374151" }}>{draft.note}</div> : null}
-            </div>
-
-            {suggestion ? (
-              <div style={{ border: "1px solid #dbeafe", borderRadius: 16, padding: 12, background: "#eff6ff" }}>
-                <div style={{ fontWeight: 800 }}>Conseil IA pour ce point du plan</div>
-                <div style={{ marginTop: 6, fontSize: 14 }}>{suggestion.verdict}</div>
-                <div style={{ color: "#4b5563", marginTop: 6, fontSize: 13 }}>{suggestion.detail}</div>
-                <div style={{ marginTop: 8, fontSize: 13 }}>
-                  Idées très cohérentes ici :{" "}
-                  <strong>{suggestion.bestKeys.map((key) => plants[key].name).join(", ")}</strong>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {step > 0 ? <button onClick={() => setStep(step - 1)} style={ghost(false)}>Retour</button> : null}
-            {step < 3 ? (
-              <button
-                onClick={() => setStep(step + 1)}
-                disabled={(step === 0 && !canGoToStep2) || (step === 1 && !canGoToStep3) || (step === 2 && !canFinish)}
-                style={button("#111827")}
-              >
-                Suivant
-              </button>
-            ) : (
-              <button onClick={onApply} disabled={!canFinish} style={button("#2563eb")}>
-                Placer sur le plan
-              </button>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {slotFilled ? <button onClick={onClear} style={button("#b91c1c")}>Vider</button> : null}
-            <button onClick={onCancel} style={ghost(false)}>Annuler</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+function cellScore({ index, plan, cell, weather }) {
+  const { row, col } = getCellCoords(index, plan.cols);
+  let score = cell.sun;
+  const maxRow = plan.rows - 1;
+  const maxCol = plan.cols - 1;
+  if (plan.brightSide === "south") score += row / Math.max(1, maxRow);
+  if (plan.brightSide === "north") score += (maxRow - row) / Math.max(1, maxRow);
+  if (plan.brightSide === "east") score += col / Math.max(1, maxCol);
+  if (plan.brightSide === "west") score += (maxCol - col) / Math.max(1, maxCol);
+  if (plan.shadySide === "south") score -= row / Math.max(1, maxRow);
+  if (plan.shadySide === "north") score -= (maxRow - row) / Math.max(1, maxRow);
+  if (plan.shadySide === "east") score -= col / Math.max(1, maxCol);
+  if (plan.shadySide === "west") score -= (maxCol - col) / Math.max(1, maxCol);
+  if (weather?.temperature >= 28 && cell.structure === "greenhouse") score += 0.2;
+  if (weather?.windspeed >= 35 && ["wall", "fence"].includes(cell.structure)) score += 0.3;
+  return score;
 }
 
-// Repère 3/6 — composant principal et états
+function getPlacementAdvice({ cell, index, plan, weather }) {
+  const structure = structures[cell.structure];
+  if (!structure.cultivable) {
+    if (cell.structure === "wall") return "Mur utile pour lire l’orientation et couper le vent.";
+    if (cell.structure === "terrace") return "Terrasse : pas de pleine terre ici, garde-la comme repère de circulation.";
+    if (cell.structure === "fence") return "Clôture : bon repère de bord, utile pour fleurs compagnes ou brise-vent proche.";
+    if (cell.structure === "shade") return "Zone ombrée : préfère salades, persil ou zone de repos visuel.";
+    return "Zone structurelle : garde cette case pour lire le jardin avant de planter ailleurs.";
+  }
+  if (!cell.plant) return "Case cultivable : choisis une culture selon l’exposition et la météo.";
+  const plant = plants[cell.plant];
+  const score = cellScore({ index, plan, cell, weather });
+  if (plant.sunNeed >= 3 && score >= 2.5) {
+    return `Très bon emplacement pour ${plant.name.toLowerCase()} : chaud et lumineux.`;
+  }
+  if (plant.sunNeed >= 3 && score < 2) {
+    return `${plant.name} risque de manquer de soleil ici. Essaie une zone plus exposée.`;
+  }
+  if (plant.sunNeed <= 1 && score <= 1.8) {
+    return `${plant.name} tolère bien cette zone plus fraîche.`;
+  }
+  if (weather?.temperature >= 28 && plant.sunNeed <= 1) {
+    return `${plant.name} profitera d’une zone moins brûlante pendant les fortes chaleurs.`;
+  }
+  if (weather?.windspeed >= 35 && ["tomate", "tomateCerise", "poivron", "piment"].includes(cell.plant)) {
+    return `${plant.name} : surveille le vent, un tuteur ou une zone plus abritée peut aider.`;
+  }
+  return `${plant.name} : emplacement correct, surveille surtout l’arrosage et la reprise.`;
+}
+
+// Repère 2/6 — composant principal, état, persistance
 export default function App() {
-  const initial = getInitialData();
-  const [potagers, setPotagers] = useState(initial.potagers);
-  const [activePotagerId, setActivePotagerId] = useState(initial.activePotagerId);
+  const initial = getInitialState();
+  const [plans, setPlans] = useState(initial.plans);
+  const [activePlanId, setActivePlanId] = useState(initial.activePlanId);
+  const [tab, setTab] = useState("plan");
   const [weather, setWeather] = useState(null);
   const [screenWidth, setScreenWidth] = useState(() => window.innerWidth);
-  const [activeTab, setActiveTab] = useState("plan");
-  const [planFullscreen, setPlanFullscreen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(null);
-  const [builderOpen, setBuilderOpen] = useState(false);
-  const [builderStep, setBuilderStep] = useState(0);
-  const [builderAnchor, setBuilderAnchor] = useState({ left: 12, top: 12 });
-  const [builderDraft, setBuilderDraft] = useState(makeSlot({ kind: "plant", plant: "tomate", count: 1, label: "Tomate" }));
-  const [paintMode, setPaintMode] = useState(false);
-  const [paintFlash, setPaintFlash] = useState(null);
-  const [customSize, setCustomSize] = useState({ rows: 6, cols: 8 });
-  const [photoMessage, setPhotoMessage] = useState("");
+  const [editor, setEditor] = useState({ open: false, x: 0, y: 0 });
+  const [builderStep, setBuilderStep] = useState(1);
+  const [fullscreenPlan, setFullscreenPlan] = useState(false);
+  const [focusOnlyPlan, setFocusOnlyPlan] = useState(true);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const planRef = useRef(null);
-  const photoRef = useRef(null);
+  const fileRef = useRef(null);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE, JSON.stringify({ potagers, activePotagerId }));
-  }, [potagers, activePotagerId]);
+    localStorage.setItem(STORAGE, JSON.stringify({ plans, activePlanId }));
+  }, [plans, activePlanId]);
 
   useEffect(() => {
     const onResize = () => setScreenWidth(window.innerWidth);
@@ -895,669 +481,962 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!potagers.length) {
-      const next = createPotager("Potager principal");
-      setPotagers([next]);
-      setActivePotagerId(next.id);
+    if (!plans.length) {
+      const next = createPlan();
+      setPlans([next]);
+      setActivePlanId(next.id);
       return;
     }
-    if (!potagers.some((x) => x.id === activePotagerId)) {
-      setActivePotagerId(potagers[0].id);
+    if (!plans.some((plan) => plan.id === activePlanId)) {
+      setActivePlanId(plans[0].id);
     }
-  }, [potagers, activePotagerId]);
+  }, [plans, activePlanId]);
 
-  const isMobile = screenWidth <= 940;
-  const activePotager = useMemo(() => potagers.find((x) => x.id === activePotagerId) || potagers[0] || null, [potagers, activePotagerId]);
+  const isMobile = screenWidth <= 920;
+  const activePlan = useMemo(
+    () => plans.find((plan) => plan.id === activePlanId) || plans[0] || null,
+    [plans, activePlanId]
+  );
 
-  function updateActivePotager(updater) {
-    if (!activePotager) return;
-    setPotagers((prev) =>
-      prev.map((potager) => {
-        if (potager.id !== activePotager.id) return potager;
-        const next = updater(potager);
-        return normalizePotager(next);
+  const selectedCell = useMemo(
+    () => (activePlan && selectedIndex !== null ? activePlan.cells[selectedIndex] : null),
+    [activePlan, selectedIndex]
+  );
+
+  const pageBackground = useMemo(() => {
+    if (!activePlan?.backgroundValidated) {
+      return "linear-gradient(180deg, #edf4f8 0%, #f7fafc 100%)";
+    }
+    return [
+      "radial-gradient(circle at 10% 10%, rgba(34,197,94,0.12), transparent 24%)",
+      "radial-gradient(circle at 85% 20%, rgba(239,68,68,0.08), transparent 28%)",
+      "radial-gradient(circle at 70% 80%, rgba(245,158,11,0.08), transparent 24%)",
+      "linear-gradient(180deg, #edf4f8 0%, #f7fafc 100%)",
+    ].join(",");
+  }, [activePlan]);
+
+  function updateActivePlan(updater) {
+    if (!activePlan) return;
+    setPlans((prev) =>
+      prev.map((plan) => {
+        if (plan.id !== activePlan.id) return plan;
+        const next = normalizePlan(updater(plan));
+        return next;
       })
     );
   }
 
-  const rows = activePotager?.rows || 4;
-  const cols = activePotager?.cols || 4;
-  const slots = activePotager?.slots || buildGrid(4, 4);
-  const selectedSlot = selectedIndex != null ? slots[selectedIndex] : null;
-
-  const totals = useMemo(() => {
-    const totalPlants = slots.reduce((sum, slot) => sum + Number(slot.kind === "plant" ? slot.count : 0), 0);
-    const waterNeed = slots.reduce((sum, slot) => sum + Number(slot.kind === "plant" ? slot.count : 0) * Number(plants[slot.plant]?.water || 0), 0);
-    const harvestEstimate = slots.reduce((sum, slot) => sum + Number(slot.kind === "plant" ? slot.count : 0) * Number(plants[slot.plant]?.yield || 0), 0);
-    return {
-      totalPlants,
-      waterNeed: waterNeed.toFixed(1),
-      harvestEstimate: harvestEstimate.toFixed(1),
-    };
-  }, [slots]);
-
-  const dueReminders = useMemo(() => {
-    const now = new Date();
-    return (activePotager?.reminders || []).map((reminder) => ({
-      ...reminder,
-      statusLabel: reminder.done ? "Terminé" : new Date(reminder.dueDate) < now ? "En retard" : "À venir",
+  function updateCell(index, updater) {
+    if (!activePlan) return;
+    updateActivePlan((plan) => ({
+      ...plan,
+      cells: plan.cells.map((cell, i) => {
+        if (i !== index) return cell;
+        const next = updater(cell);
+        const structure = structures[next.structure] ? next.structure : "empty";
+        const cultivable = structures[structure].cultivable;
+        return {
+          ...next,
+          structure,
+          plant: cultivable && plants[next.plant] ? next.plant : "",
+          count: cultivable ? Math.max(0, Number(next.count || 0)) : 0,
+          sun: clamp(Number(next.sun ?? 2), 0, 3),
+          note: next.note || "",
+          actions: Array.isArray(next.actions) ? next.actions : [],
+          reminders: Array.isArray(next.reminders) ? next.reminders : [],
+        };
+      }),
     }));
-  }, [activePotager]);
-
-  const planWidgetBackground = useMemo(() => getPlanBackgroundThumbnail(slots, cols), [slots, cols]);
-
-  function normalizeDraftForPlacement(draft) {
-    return makeSlot({
-      ...draft,
-      kind: draft.kind,
-      plant: draft.kind === "plant" ? draft.plant : "",
-      label:
-        draft.kind === "plant"
-          ? draft.label || plants[draft.plant]?.name || ""
-          : draft.label || slotKinds[draft.kind]?.label || "",
-      count: draft.kind === "plant" ? Math.max(1, Number(draft.count || 1)) : 0,
-      sun: clamp(Number(draft.sun ?? 2), 0, 3),
-      exposure: draft.exposure || "equilibre",
-      note: draft.note || "",
-    });
   }
 
-  function applyDraftAtIndex(index, overrideDraft = null) {
-    const source = overrideDraft || builderDraft;
-    updateActivePotager((potager) => {
-      const nextSlots = [...potager.slots];
-      nextSlots[index] = normalizeDraftForPlacement(source);
-      return { ...potager, slots: nextSlots };
-    });
+  function selectCell(index, event) {
     setSelectedIndex(index);
-    setPaintFlash(index);
-    setTimeout(() => setPaintFlash((current) => (current === index ? null : current)), 450);
-  }
-
-  function takeSelectedAsBrush() {
-    if (!selectedSlot || selectedIndex == null) return;
-    setBuilderDraft({ ...selectedSlot, id: uid() });
-    setPaintMode(true);
-    setBuilderOpen(false);
-  }
-
-  function openBuilderForSlot(index, event) {
-
-    setSelectedIndex(index);
-    const slot = slots[index];
-    const baseDraft =
-      slot.kind === "empty"
-        ? makeSlot({ kind: "plant", plant: "tomate", count: 1, label: "Tomate", sun: computeSuggestedSun(index, rows, cols, activePotager.diagnosis), exposure: "equilibre" })
-        : { ...slot };
-    setBuilderDraft(baseDraft);
-    setBuilderStep(0);
-    setBuilderOpen(true);
-
-    if (planRef.current && event?.currentTarget) {
-      const box = planRef.current.getBoundingClientRect();
-      const target = event.currentTarget.getBoundingClientRect();
-      const width = 340;
-      const height = 460;
-      const left = clamp(target.left - box.left + 6, 12, Math.max(12, box.width - width - 12));
-      const top = clamp(target.top - box.top + target.height + 8, 12, Math.max(12, box.height - height - 12));
-      setBuilderAnchor({ left, top });
-    } else {
-      setBuilderAnchor({ left: 12, top: 12 });
+    const rect = event?.currentTarget?.getBoundingClientRect();
+    const panelWidth = isMobile ? Math.min(screenWidth - 24, 420) : 340;
+    if (isMobile) {
+      setEditor({ open: true, x: 12, y: window.innerHeight - 420 });
+      setBuilderStep(1);
+      return;
     }
+    const x = clamp((rect?.left || 120) + 10, 12, window.innerWidth - panelWidth - 16);
+    const y = clamp((rect?.top || 120) + 10, 74, window.innerHeight - 430);
+    setEditor({ open: true, x, y });
+    setBuilderStep(1);
   }
 
-  function closeBuilder() {
-    setBuilderOpen(false);
+  function closeEditor() {
+    setEditor((prev) => ({ ...prev, open: false }));
   }
 
-  function applyBuilderToSelected() {
-    if (selectedIndex == null) return;
-    applyDraftAtIndex(selectedIndex);
-    setBuilderOpen(false);
+  function createNewPlan() {
+    const next = createPlan(`Potager ${plans.length + 1}`);
+    setPlans((prev) => [...prev, next]);
+    setActivePlanId(next.id);
+    setSelectedIndex(null);
+    setEditor({ open: false, x: 0, y: 0 });
   }
 
-  function clearSelectedSlot() {
-    if (selectedIndex == null) return;
-    updateActivePotager((potager) => {
-      const nextSlots = [...potager.slots];
-      nextSlots[selectedIndex] = makeSlot();
-      return { ...potager, slots: nextSlots };
+  function duplicatePlan() {
+    if (!activePlan) return;
+    const next = normalizePlan({
+      ...activePlan,
+      id: uid(),
+      name: `${activePlan.name} copie`,
+      cells: activePlan.cells.map((cell) => ({ ...cell, id: uid() })),
     });
-    setBuilderOpen(false);
+    setPlans((prev) => [...prev, next]);
+    setActivePlanId(next.id);
+    setSelectedIndex(null);
   }
 
-  function createPotagerAction() {
-    const next = createPotager(`Potager ${potagers.length + 1}`);
-    setPotagers((prev) => [...prev, next]);
-    setActivePotagerId(next.id);
+  function deletePlan() {
+    if (!activePlan || plans.length <= 1) return;
+    const nextPlans = plans.filter((plan) => plan.id !== activePlan.id);
+    setPlans(nextPlans);
+    setActivePlanId(nextPlans[0].id);
+    setSelectedIndex(null);
+    setEditor({ open: false, x: 0, y: 0 });
   }
 
-  function duplicatePotager() {
-    if (!activePotager) return;
-    const next = normalizePotager({ ...activePotager, id: uid(), name: `${activePotager.name} copie` });
-    setPotagers((prev) => [...prev, next]);
-    setActivePotagerId(next.id);
-  }
-
-  function deletePotager() {
-    if (!activePotager || potagers.length <= 1) return;
-    const next = potagers.filter((x) => x.id !== activePotager.id);
-    setPotagers(next);
-    setActivePotagerId(next[0].id);
-  }
-
-  function applyPreset(rowsValue, colsValue) {
-    updateActivePotager((potager) => ({
-      ...potager,
-      rows: rowsValue,
-      cols: colsValue,
-      slots: resizeGrid(potager.slots, potager.rows, potager.cols, rowsValue, colsValue),
+  function applyPreset(preset) {
+    updateActivePlan((plan) => ({
+      ...plan,
+      rows: preset.rows,
+      cols: preset.cols,
+      cells: createGrid(preset.rows, preset.cols),
     }));
     setSelectedIndex(null);
-    setBuilderOpen(false);
+    closeEditor();
   }
 
-  function growPlan(addRows, addCols) {
-    updateActivePotager((potager) => {
-      const rowsValue = clamp(potager.rows + addRows, 2, 16);
-      const colsValue = clamp(potager.cols + addCols, 2, 16);
-      return {
-        ...potager,
-        rows: rowsValue,
-        cols: colsValue,
-        slots: resizeGrid(potager.slots, potager.rows, potager.cols, rowsValue, colsValue),
-      };
+  function resizeGrid(rows, cols) {
+    if (!activePlan) return;
+    const safeRows = clamp(rows, 2, 20);
+    const safeCols = clamp(cols, 2, 20);
+    updateActivePlan((plan) => {
+      const nextCells = [];
+      for (let r = 0; r < safeRows; r += 1) {
+        for (let c = 0; c < safeCols; c += 1) {
+          if (r < plan.rows && c < plan.cols) {
+            nextCells.push(plan.cells[r * plan.cols + c]);
+          } else {
+            nextCells.push(createCell());
+          }
+        }
+      }
+      return { ...plan, rows: safeRows, cols: safeCols, cells: nextCells };
     });
   }
 
-  function createRemindersForAction(actionType) {
-    if (selectedIndex == null || !selectedSlot || selectedSlot.kind !== "plant") return;
-    const template = actionTemplates[actionType];
-    const actionDate = today();
-    const slotTitle = selectedSlot.label || plants[selectedSlot.plant]?.name || "Culture";
-    const newAction = {
-      id: uid(),
-      type: actionType,
-      date: actionDate,
-      slotIndex: selectedIndex,
-      slotTitle,
-      plant: selectedSlot.plant,
-      count: selectedSlot.count,
-    };
-    const generated = template.reminders.map((item) => ({
-      id: uid(),
-      actionId: newAction.id,
-      title: `${template.icon} ${item.title}`,
-      dueDate: addDaysISO(actionDate, item.offset),
-      plant: selectedSlot.plant,
-      count: selectedSlot.count,
-      slotTitle,
-      average: item.average,
-      signs: item.signs,
-      advice: item.advice,
-      done: false,
-    }));
-    updateActivePotager((potager) => ({
-      ...potager,
-      actions: [newAction, ...potager.actions],
-      reminders: [...generated, ...potager.reminders],
+  function markReminder(index, reminderId, done) {
+    updateCell(index, (cell) => ({
+      ...cell,
+      reminders: cell.reminders.map((reminder) =>
+        reminder.id === reminderId ? { ...reminder, done } : reminder
+      ),
     }));
   }
 
-  function toggleReminderDone(id) {
-    updateActivePotager((potager) => ({
-      ...potager,
-      reminders: potager.reminders.map((reminder) => (reminder.id === id ? { ...reminder, done: !reminder.done } : reminder)),
+  function validateAction(index, type) {
+    const template = actionTemplates[type];
+    if (!template) return;
+    updateCell(index, (cell) => ({
+      ...cell,
+      actions: [
+        {
+          id: uid(),
+          type,
+          label: template.label,
+          date: new Date().toISOString(),
+          quantity: Math.max(1, Number(cell.count || 1)),
+        },
+        ...cell.actions,
+      ],
+      reminders: [
+        ...template.reminders.map((reminder) => ({
+          id: uid(),
+          sourceType: type,
+          title: reminder.title,
+          dueDate: addDaysISO(new Date().toISOString(), reminder.offset),
+          quantity: Math.max(1, Number(cell.count || 1)),
+          average: reminder.average,
+          signs: reminder.signs,
+          advice: reminder.advice,
+          done: false,
+        })),
+        ...cell.reminders,
+      ],
     }));
   }
 
-  function handlePhotoImport(event) {
+  function uploadPhoto(event) {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !activePlan) return;
+    setPhotoUploading(true);
     const reader = new FileReader();
     reader.onload = () => {
-      updateActivePotager((potager) => ({
-        ...potager,
-        diagnosis: {
-          ...potager.diagnosis,
-          photoDataUrl: String(reader.result || ""),
-          photoName: file.name,
-        },
-      }));
-      setPhotoMessage("Photo ajoutée. Tu peux maintenant affiner le diagnostic avec les curseurs ci-dessous.");
-      event.target.value = "";
+      updateActivePlan((plan) => ({ ...plan, photoDataUrl: String(reader.result || "") }));
+      setPhotoUploading(false);
     };
+    reader.onerror = () => setPhotoUploading(false);
     reader.readAsDataURL(file);
   }
 
-  const suggestion = useMemo(() => {
-    if (selectedIndex == null || !activePotager) return null;
-    return getSuggestionForSlot(selectedIndex, activePotager, weather, builderDraft);
-  }, [selectedIndex, activePotager, weather, builderDraft]);
+  // Repère 3/6 — métriques, diagnostic, conseils
+  const zoom = activePlan?.zoom || 100;
+  const cellSize = isMobile
+    ? clamp(Math.round((zoom / 100) * 52), 38, 64)
+    : clamp(Math.round((zoom / 100) * 58), 42, 72);
 
-  const planContent = (
-    <Card
-      title="🗺️ Plan du jardin"
-      right={
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={() => setPlanFullscreen((x) => !x)} style={floatingButton(false)}>
-            {planFullscreen ? "Quitter le plein écran" : "Plein écran"}
-          </button>
-        </div>
+  const stats = useMemo(() => {
+    if (!activePlan) {
+      return { plants: 0, water: 0, harvest: 0, structures: {} };
+    }
+    const result = { plants: 0, water: 0, harvest: 0, structures: {} };
+    activePlan.cells.forEach((cell) => {
+      result.structures[cell.structure] = (result.structures[cell.structure] || 0) + 1;
+      if (cell.plant && plants[cell.plant]) {
+        result.plants += Number(cell.count || 0);
+        result.water += Number(cell.count || 0) * plants[cell.plant].water;
+        result.harvest += Number(cell.count || 0) * plants[cell.plant].yield;
       }
-    >
-      <div style={{ display: "grid", gap: 14 }}>
+    });
+    return result;
+  }, [activePlan]);
+
+  const allReminders = useMemo(() => {
+    if (!activePlan) return [];
+    const output = [];
+    activePlan.cells.forEach((cell, index) => {
+      cell.reminders.forEach((reminder) => {
+        output.push({
+          ...reminder,
+          cellIndex: index,
+          structure: cell.structure,
+          plant: cell.plant,
+        });
+      });
+    });
+    return output.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  }, [activePlan]);
+
+  const alerts = useMemo(() => {
+    if (!activePlan) return [];
+    const list = [];
+    activePlan.cells.forEach((cell, index) => {
+      if (!cell.plant) return;
+      const plant = plants[cell.plant];
+      if (cell.sun < plant.sunNeed) {
+        list.push(`☀️ ${plant.name} manque de soleil en case ${index + 1}.`);
+      }
+      if (weather?.temperature >= 28 && cell.sun >= 2) {
+        list.push(`🔥 ${plant.name} en case ${index + 1} : surveiller l’arrosage du soir.`);
+      }
+      if (weather?.windspeed >= 35 && ["tomate", "tomateCerise", "poivron", "piment"].includes(cell.plant)) {
+        list.push(`💨 ${plant.name} en case ${index + 1} : protéger ou tuteurer.`);
+      }
+    });
+    const late = allReminders.filter(isLateReminder).length;
+    const todayCount = allReminders.filter(isTodayReminder).length;
+    if (late > 0) list.unshift(`⏰ ${late} rappel(s) en retard.`);
+    if (todayCount > 0) list.unshift(`📌 ${todayCount} rappel(s) à faire aujourd’hui.`);
+    return [...new Set(list)].slice(0, 8);
+  }, [activePlan, weather, allReminders]);
+
+  const selectedAdvice = useMemo(() => {
+    if (!activePlan || selectedIndex === null || !selectedCell) return "";
+    return getPlacementAdvice({ cell: selectedCell, index: selectedIndex, plan: activePlan, weather });
+  }, [activePlan, selectedIndex, selectedCell, weather]);
+
+  const bestSlots = useMemo(() => {
+    if (!activePlan || !selectedCell?.plant) return [];
+    return activePlan.cells
+      .map((cell, index) => ({ cell, index, score: cellScore({ index, plan: activePlan, cell, weather }) }))
+      .filter(({ cell }) => structures[cell.structure].cultivable)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+  }, [activePlan, selectedCell, weather]);
+
+  const compactStructureSummary = useMemo(() => {
+    return structureOrder
+      .filter((key) => stats.structures[key])
+      .map((key) => `${structures[key].label} ${stats.structures[key]}`)
+      .slice(0, 6);
+  }, [stats]);
+
+  function quickFill(index, structureKey) {
+    updateCell(index, (cell) => ({
+      ...cell,
+      structure: structureKey,
+      plant: structures[structureKey].cultivable ? cell.plant : "",
+      count: structures[structureKey].cultivable ? Math.max(1, Number(cell.count || 1)) : 0,
+    }));
+  }
+
+  function duplicateSelectedInto(index) {
+    if (!selectedCell || selectedIndex === null) return;
+    const clone = { ...selectedCell, id: uid(), reminders: [], actions: [] };
+    updateCell(index, () => clone);
+  }
+
+  const builderHint = useMemo(() => {
+    if (!selectedCell) return "Clique une case pour l’éditer directement sur le plan.";
+    if (builderStep === 1) return "Étape 1 : choisis la structure de terrain de cette case.";
+    if (builderStep === 2) return structures[selectedCell.structure].cultivable
+      ? "Étape 2 : choisis la culture à placer ou laisse vide."
+      : "Étape 2 : cette structure ne reçoit pas de culture, passe au soleil ou à la note.";
+    if (builderStep === 3) return "Étape 3 : règle l’exposition de base de cette case.";
+    return "Étape 4 : ajuste quantité, note et rappels si besoin.";
+  }, [builderStep, selectedCell]);
+
+  function currentStructureStepDone() {
+    return selectedCell && selectedCell.structure !== "empty";
+  }
+
+  function currentPlantStepDone() {
+    if (!selectedCell) return false;
+    if (!structures[selectedCell.structure].cultivable) return true;
+    return Boolean(selectedCell.plant);
+  }
+
+  // Repère 4/6 — rendu plan minimal, cellules, panneau flottant
+  function renderCell(cell, index, inFullscreen = false) {
+    const isSelected = selectedIndex === index;
+    const structure = structures[cell.structure];
+    const plant = cell.plant ? plants[cell.plant] : null;
+    const borderColor = isSelected ? "#111827" : structure.border;
+    const contentColor = plant?.color || structure.border;
+    return (
+      <button
+        key={`${inFullscreen ? "fs" : "base"}-${cell.id}-${index}`}
+        onClick={(event) => selectCell(index, event)}
+        title={`${structure.label}${plant ? ` • ${plant.name}` : ""}`}
+        style={{
+          width: cellSize,
+          height: cellSize,
+          borderRadius: 10,
+          border: `1.5px solid ${borderColor}`,
+          background: structure.color,
+          position: "relative",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 0,
+          boxShadow: isSelected ? "0 0 0 2px rgba(17,24,39,0.15)" : "none",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ position: "absolute", inset: 0, opacity: cell.structure === "wall" ? 0.22 : 0.12 }}>
+          {cell.structure === "path" ? (
+            <div style={{ width: "100%", height: "100%", background: "repeating-linear-gradient(135deg, rgba(0,0,0,0.06) 0 6px, transparent 6px 12px)" }} />
+          ) : null}
+          {cell.structure === "terrace" ? (
+            <div style={{ width: "100%", height: "100%", background: "repeating-linear-gradient(90deg, rgba(0,0,0,0.08) 0 10px, transparent 10px 20px)" }} />
+          ) : null}
+          {cell.structure === "fence" ? (
+            <div style={{ width: "100%", height: "100%", background: "repeating-linear-gradient(90deg, rgba(0,0,0,0.10) 0 4px, transparent 4px 8px)" }} />
+          ) : null}
+          {cell.structure === "wall" ? (
+            <div style={{ width: "100%", height: "100%", background: "repeating-linear-gradient(0deg, rgba(0,0,0,0.10) 0 8px, transparent 8px 16px), repeating-linear-gradient(90deg, rgba(0,0,0,0.08) 0 14px, transparent 14px 28px)" }} />
+          ) : null}
+        </div>
+
+        {plant ? (
+          <div
+            style={{
+              width: Math.max(20, cellSize - 28),
+              height: Math.max(20, cellSize - 28),
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.96)",
+              border: `1px solid ${contentColor}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: Math.max(14, cellSize * 0.34),
+              zIndex: 1,
+            }}
+          >
+            {plant.icon}
+          </div>
+        ) : (
+          <div style={{ fontSize: Math.max(10, cellSize * 0.22), opacity: 0.6, zIndex: 1 }}>{structure.icon}</div>
+        )}
+
+        {cell.count > 0 ? (
+          <div
+            style={{
+              position: "absolute",
+              right: 4,
+              bottom: 4,
+              minWidth: 16,
+              height: 16,
+              padding: "0 4px",
+              borderRadius: 999,
+              background: "#111827",
+              color: "#fff",
+              fontSize: 10,
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 2,
+            }}
+          >
+            {cell.count}
+          </div>
+        ) : null}
+
+        {cell.sun !== 2 ? (
+          <div
+            style={{
+              position: "absolute",
+              left: 4,
+              top: 4,
+              width: 14,
+              height: 14,
+              borderRadius: 999,
+              background: ["#64748b", "#93c5fd", "#fcd34d", "#f59e0b"][cell.sun] || "#fcd34d",
+              border: "1px solid rgba(255,255,255,0.9)",
+              zIndex: 2,
+            }}
+          />
+        ) : null}
+      </button>
+    );
+  }
+
+  function renderFloatingEditor() {
+    if (!editor.open || selectedCell === null || !activePlan) return null;
+    const content = (
+      <div
+        style={{
+          width: isMobile ? "100%" : 336,
+          background: "#ffffff",
+          borderRadius: isMobile ? "18px 18px 0 0" : 18,
+          boxShadow: "0 24px 54px rgba(15,23,42,0.18)",
+          border: "1px solid rgba(0,0,0,0.08)",
+          padding: 14,
+          display: "grid",
+          gap: 12,
+          maxHeight: isMobile ? "70vh" : 430,
+          overflow: "auto",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>Case {selectedIndex + 1}</div>
+            <div style={{ color: "#6b7280", fontSize: 12 }}>{builderHint}</div>
+          </div>
+          <button onClick={closeEditor} style={softButton(false)}>Fermer</button>
+        </div>
+
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {presets.map((preset) => (
-            <button key={preset.key} onClick={() => applyPreset(preset.rows, preset.cols)} style={ghost(rows === preset.rows && cols === preset.cols)}>
-              {preset.label}
+          {[1, 2, 3, 4].map((step) => (
+            <button key={step} onClick={() => setBuilderStep(step)} style={miniAction(builderStep === step)}>
+              {step}
             </button>
           ))}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))", gap: 10 }}>
-          <label>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Lignes</div>
-            <input type="number" min={2} max={16} value={customSize.rows} onChange={(e) => setCustomSize((prev) => ({ ...prev, rows: clamp(Number(e.target.value || 2), 2, 16) }))} style={getInputStyle()} />
-          </label>
-          <label>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Colonnes</div>
-            <input type="number" min={2} max={16} value={customSize.cols} onChange={(e) => setCustomSize((prev) => ({ ...prev, cols: clamp(Number(e.target.value || 2), 2, 16) }))} style={getInputStyle()} />
-          </label>
-          <div style={{ display: "flex", alignItems: "end" }}>
-            <button onClick={() => applyPreset(customSize.rows, customSize.cols)} style={button("#2563eb")}>Appliquer la taille</button>
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "end", flexWrap: "wrap" }}>
-            <button onClick={() => growPlan(1, 0)} style={ghost(false)}>+1 ligne</button>
-            <button onClick={() => growPlan(0, 1)} style={ghost(false)}>+1 colonne</button>
-          </div>
-        </div>
-
-        <div style={{ position: "relative", borderRadius: 22, border: "2px dashed #cbd5e1", background: "linear-gradient(180deg,#f8fbff 0%, #eef5f8 100%)", padding: 14 }}>
-          <div style={{ marginBottom: 10, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-            <div>
-              <div style={{ fontWeight: 800 }}>Construis comme un jeu</div>
-              <div style={{ color: "#6b7280", fontSize: 13 }}>
-                Choisis ton modèle dans la palette, puis clique une case pour peindre. En mode édition, clique une case pour ouvrir l’éditeur flottant exactement dessus.
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <span style={{ fontSize: 13, color: "#6b7280" }}>Plan {rows} × {cols}</span>
-              <span style={{ fontSize: 13, color: paintMode ? "#2563eb" : "#6b7280", fontWeight: 700 }}>{paintMode ? "Mode pinceau" : "Mode édition"}</span>
-            </div>
-          </div>
-
-          <CompactPalette
-            mobile={isMobile}
-            paintMode={paintMode}
-            setPaintMode={setPaintMode}
-            draft={builderDraft}
-            setDraft={setBuilderDraft}
-            selectedSlot={selectedSlot}
-            onTakeSelected={takeSelectedAsBrush}
-            onEditSelected={() => {
-              if (selectedIndex != null) {
-                setPaintMode(false);
-                setBuilderOpen(true);
-                setBuilderStep(3);
-              }
-            }}
-          />
-
-          <div ref={planRef} style={{ position: "relative", overflow: "auto", maxHeight: planFullscreen ? "calc(100vh - 280px)" : 560 }}>
-            <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, minmax(${isMobile ? 110 : 128}px, 1fr))`, gap: 10, minWidth: "max-content", padding: 4 }}>
-              {slots.map((slot, index) => {
-                const selected = index === selectedIndex;
-                const slotColor = slot.kind === "plant" && plants[slot.plant] ? plants[slot.plant].color : slotKinds[slot.kind]?.color || slotKinds.empty.color;
-                const slotTitle = slot.kind === "plant" ? (slot.label || plants[slot.plant]?.name || "Culture") : (slot.label || slotKinds[slot.kind]?.label || "Vide");
-                const showGhostPreview = paintMode && builderDraft.kind && builderDraft.kind !== "empty";
-                const emptySlot = slot.kind === "empty";
-                return (
-                  <button
-                    key={`${index}-${slot.id}`}
-                    onClick={(e) => openBuilderForSlot(index, e)}
-                    style={{
-                      background: slotColor,
-                      borderRadius: 18,
-                      border: selected ? "3px solid #111827" : paintFlash === index ? "3px solid #2563eb" : "1px solid rgba(15,23,42,0.08)",
-                      minHeight: isMobile ? 110 : 126,
-                      padding: 10,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "start",
-                      justifyContent: "space-between",
-                      textAlign: "left",
-                      cursor: "pointer",
-                      boxShadow: selected ? "0 10px 24px rgba(0,0,0,0.16)" : "0 8px 18px rgba(15,23,42,0.08)",
-                      color: slot.kind === "shade" ? "#fff" : "#111827",
-                      position: "relative",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {showGhostPreview && emptySlot ? (
-                      <div style={{
-                        position: "absolute",
-                        inset: 8,
-                        borderRadius: 14,
-                        border: "2px dashed rgba(37,99,235,0.55)",
-                        background: "rgba(255,255,255,0.45)",
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        gap: 4,
-                        pointerEvents: "none",
-                      }}>
-                        <div style={{ fontSize: 22, opacity: 0.9 }}>{builderDraft.kind === "plant" ? plants[builderDraft.plant]?.icon : slotKinds[builderDraft.kind]?.icon}</div>
-                        <div style={{ fontSize: 11, fontWeight: 800 }}>{builderDraft.kind === "plant" ? plants[builderDraft.plant]?.name : slotKinds[builderDraft.kind]?.label}</div>
-                        {builderDraft.kind === "plant" ? <div style={{ fontSize: 10, color: "#334155" }}>× {builderDraft.count}</div> : null}
-                      </div>
-                    ) : null}
-
-                    <div style={{ display: "flex", width: "100%", justifyContent: "space-between", gap: 8 }}>
-                      <span style={{ fontSize: 28, zIndex: 1 }}>
-                        {slot.kind === "plant" ? plants[slot.plant]?.icon : slotKinds[slot.kind]?.icon}
-                      </span>
-                      <div style={{ zIndex: 1 }}><SunDots sun={slot.sun} /></div>
-                    </div>
-                    <div style={{ width: "100%", zIndex: 1 }}>
-                      <div style={{ fontWeight: 800, fontSize: 14 }}>{small(slotTitle, 18)}</div>
-                      <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>
-                        {slot.kind === "plant" ? `${plants[slot.plant]?.name || ""} • ${slot.count}` : slotKinds[slot.kind]?.label}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            <FloatingBuilder
-              open={builderOpen}
-              mobile={isMobile}
-              draft={builderDraft}
-              setDraft={setBuilderDraft}
-              step={builderStep}
-              setStep={setBuilderStep}
-              onApply={applyBuilderToSelected}
-              onCancel={closeBuilder}
-              onClear={clearSelectedSlot}
-              suggestion={suggestion}
-              anchor={builderAnchor}
-              slotFilled={selectedSlot?.kind !== "empty"}
-            />
-          </div>
-        </div>
-      </div>
-    </Card>
-  );
-
-  // Repère 4/6 — panneaux assistant, case et suivi
-  const assistantPanel = (
-    <div style={{ display: "grid", gap: 16 }}>
-      <Card title="🧭 Diagnostic jardin">
-        <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={() => photoRef.current?.click()} style={button("#7c3aed")}>Ajouter une photo</button>
-            <input ref={photoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoImport} />
-            {activePotager?.diagnosis?.photoName ? <span style={{ alignSelf: "center", color: "#6b7280", fontSize: 13 }}>{activePotager.diagnosis.photoName}</span> : null}
-          </div>
-          {photoMessage ? <div style={{ color: "#4338ca", fontSize: 13 }}>{photoMessage}</div> : null}
-          {activePotager?.diagnosis?.photoDataUrl ? (
-            <img src={activePotager.diagnosis.photoDataUrl} alt="Photo jardin" style={{ width: "100%", borderRadius: 16, border: "1px solid #e5e7eb", objectFit: "cover", maxHeight: 220 }} />
-          ) : null}
-
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 10 }}>
-            <label>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Orientation générale</div>
-              <select value={activePotager?.diagnosis?.orientation || "south"} onChange={(e) => updateActivePotager((potager) => ({ ...potager, diagnosis: { ...potager.diagnosis, orientation: e.target.value } }))} style={getInputStyle()}>
-                <option value="north">Nord</option>
-                <option value="south">Sud</option>
-                <option value="east">Est</option>
-                <option value="west">Ouest</option>
-              </select>
-            </label>
-            <label>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Côté le plus lumineux</div>
-              <select value={activePotager?.diagnosis?.brightSide || "south"} onChange={(e) => updateActivePotager((potager) => ({ ...potager, diagnosis: { ...potager.diagnosis, brightSide: e.target.value } }))} style={getInputStyle()}>
-                <option value="north">Nord</option>
-                <option value="south">Sud</option>
-                <option value="east">Est</option>
-                <option value="west">Ouest</option>
-              </select>
-            </label>
-            <label>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Côté le plus ombré</div>
-              <select value={activePotager?.diagnosis?.shadeSide || "north"} onChange={(e) => updateActivePotager((potager) => ({ ...potager, diagnosis: { ...potager.diagnosis, shadeSide: e.target.value } }))} style={getInputStyle()}>
-                <option value="north">Nord</option>
-                <option value="south">Sud</option>
-                <option value="east">Est</option>
-                <option value="west">Ouest</option>
-              </select>
-            </label>
-            <label>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Vent dominant</div>
-              <select value={activePotager?.diagnosis?.windSide || "west"} onChange={(e) => updateActivePotager((potager) => ({ ...potager, diagnosis: { ...potager.diagnosis, windSide: e.target.value } }))} style={getInputStyle()}>
-                <option value="north">Nord</option>
-                <option value="south">Sud</option>
-                <option value="east">Est</option>
-                <option value="west">Ouest</option>
-              </select>
-            </label>
-          </div>
-
-          <textarea
-            value={activePotager?.diagnosis?.note || ""}
-            onChange={(e) => updateActivePotager((potager) => ({ ...potager, diagnosis: { ...potager.diagnosis, note: e.target.value } }))}
-            style={getAreaStyle()}
-            placeholder="Exemple : mur haut au nord, soleil fort à droite dès midi, vent latéral fréquent..."
-          />
-        </div>
-      </Card>
-
-      <Card title="🤖 Conseils immédiats">
-        <div style={{ display: "grid", gap: 10 }}>
-          <div style={{ border: "1px solid #dbeafe", borderRadius: 16, background: "#eff6ff", padding: 12 }}>
-            <div style={{ fontWeight: 800 }}>Lecture synthétique</div>
-            <div style={{ marginTop: 6, fontSize: 14 }}>
-              Orientation déclarée : <strong>{getOrientationText(activePotager?.diagnosis?.orientation || "south")}</strong> • côté lumineux : <strong>{getOrientationText(activePotager?.diagnosis?.brightSide || "south")}</strong> • côté ombré : <strong>{getOrientationText(activePotager?.diagnosis?.shadeSide || "north")}</strong>.
-            </div>
-            <div style={{ marginTop: 6, color: "#4b5563", fontSize: 13 }}>
-              L’IA se base sur ces informations, la photo fournie et la météo du moment pour recommander les emplacements.
-            </div>
-          </div>
-          {weather ? (
-            <div style={{ border: "1px solid #fde68a", borderRadius: 16, background: "#fffbeb", padding: 12 }}>
-              <div style={{ fontWeight: 800 }}>Météo locale</div>
-              <div style={{ marginTop: 6 }}>{CITY} • {weather.temperature}°C • vent {weather.windspeed} km/h</div>
-              <div style={{ marginTop: 6, fontSize: 13, color: "#4b5563" }}>
-                {weather.temperature >= 28 ? "Forte chaleur : attention aux zones les plus exposées." : null}
-                {weather.temperature < 8 ? " Températures fraîches : prudence pour basilic, piment, poivron." : null}
-                {weather.windspeed >= 30 ? " Vent sensible : prévoir protection ou tuteurage." : null}
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </Card>
-    </div>
-  );
-
-  const casePanel = (
-    <Card title="📌 Case sélectionnée">
-      {selectedSlot ? (
-        <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 12, background: "#f8fafc" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ fontSize: 34 }}>{selectedSlot.kind === "plant" ? plants[selectedSlot.plant]?.icon : slotKinds[selectedSlot.kind]?.icon}</div>
-              <div>
-                <div style={{ fontWeight: 800 }}>{selectedSlot.kind === "plant" ? (selectedSlot.label || plants[selectedSlot.plant]?.name) : (selectedSlot.label || slotKinds[selectedSlot.kind]?.label)}</div>
-                <div style={{ color: "#6b7280", fontSize: 13 }}>
-                  {selectedSlot.kind === "plant" ? `${plants[selectedSlot.plant]?.name} • ${selectedSlot.count} plants` : slotKinds[selectedSlot.kind]?.label}
-                </div>
-              </div>
-            </div>
-            <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-              <span style={{ color: "#6b7280", fontSize: 13 }}>Exposition</span>
-              <SunDots sun={selectedSlot.sun} />
-            </div>
-            {selectedSlot.note ? <div style={{ marginTop: 8, fontSize: 13 }}>{selectedSlot.note}</div> : null}
-          </div>
-
-          {selectedSlot.kind === "plant" && suggestion ? (
-            <div style={{ border: "1px solid #dbeafe", borderRadius: 16, padding: 12, background: "#eff6ff" }}>
-              <div style={{ fontWeight: 800 }}>Suggestion de placement</div>
-              <div style={{ marginTop: 6 }}>{suggestion.verdict}</div>
-              <div style={{ color: "#4b5563", fontSize: 13, marginTop: 6 }}>{suggestion.detail}</div>
-              <div style={{ fontSize: 13, marginTop: 8 }}>
-                Alternatives très adaptées ici : <strong>{suggestion.bestKeys.map((key) => plants[key].name).join(", ")}</strong>
-              </div>
-            </div>
-          ) : null}
-
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={() => { setPaintMode(false); setBuilderOpen(true); setBuilderStep(3); }} style={button("#2563eb")}>Modifier sur le plan</button>
-            <button onClick={takeSelectedAsBrush} style={button("#0f766e")}>Dupliquer comme pinceau</button>
-            <button onClick={clearSelectedSlot} style={button("#b91c1c")}>Vider</button>
-          </div>
-
-          {selectedSlot.kind === "plant" ? (
-            <div style={{ display: "grid", gap: 8 }}>
-              <div style={{ fontWeight: 800 }}>Actions de suivi</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
-                {Object.entries(actionTemplates).map(([key, value]) => (
-                  <button key={key} onClick={() => createRemindersForAction(key)} style={ghost(false)}>
-                    {value.icon} {value.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : (
-        <div style={{ color: "#6b7280" }}>Clique une case pour la créer ou la modifier directement sur le plan.</div>
-      )}
-    </Card>
-  );
-
-  const followPanel = (
-    <div style={{ display: "grid", gap: 16 }}>
-      <Card title="⏰ Rappels">
-        {dueReminders.length ? (
-          <div style={{ display: "grid", gap: 10 }}>
-            {dueReminders.map((reminder) => (
-              <div key={reminder.id} style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 12, background: reminder.done ? "#f0fdf4" : "#fff" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "start" }}>
-                  <div>
-                    <div style={{ fontWeight: 800 }}>{reminder.title}</div>
-                    <div style={{ color: "#6b7280", fontSize: 13, marginTop: 4 }}>
-                      {plants[reminder.plant]?.name} • {reminder.count} plants • {reminder.slotTitle}
-                    </div>
-                  </div>
-                  <button onClick={() => toggleReminderDone(reminder.id)} style={ghost(reminder.done)}>
-                    {reminder.done ? "Fait" : "À faire"}
-                  </button>
-                </div>
-                <div style={{ marginTop: 8, fontSize: 13 }}>
-                  <strong>Échéance :</strong> {formatDate(reminder.dueDate)} • <strong>Délai moyen :</strong> {reminder.average}
-                </div>
-                <div style={{ marginTop: 8, fontSize: 13 }}>
-                  <strong>Signes :</strong> {reminder.signs.join(", ")}
-                </div>
-                <div style={{ marginTop: 8, fontSize: 13 }}>
-                  <strong>Conseil :</strong> {reminder.advice}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ color: "#6b7280" }}>Pas encore de rappels. Valide une action sur une case de culture pour lancer le suivi intelligent.</div>
-        )}
-      </Card>
-
-      <Card title="🧱 Widget plan">
-        <div style={{ borderRadius: 18, overflow: "hidden", border: "1px solid #e5e7eb" }}>
-          <div style={{ height: 120, background: planWidgetBackground }} />
-          <div style={{ padding: 12, background: "#fff" }}>
-            <div style={{ fontWeight: 800 }}>{activePotager?.name}</div>
-            <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>Le plan validé reste visible comme fond stylisé léger, sans être invasif.</div>
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
-
-  const desktopLayout = (
-    <div style={{ display: "grid", gridTemplateColumns: planFullscreen ? "1fr" : "minmax(840px, 1fr) 380px", gap: 20, alignItems: "start" }}>
-      <div style={{ display: "grid", gap: 18 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(180px, 1fr))", gap: 14 }}>
-          <Metric icon="🌿" label="Plants au total" value={totals.totalPlants} subtitle="Toutes zones de culture" />
-          <Metric icon="💧" label="Arrosage estimé" value={`${totals.waterNeed} L`} subtitle="Par jour environ" />
-          <Metric icon="🧺" label="Récolte potentielle" value={`${totals.harvestEstimate} kg`} subtitle="Estimation grossière" />
-        </div>
-        {planContent}
-      </div>
-      {!planFullscreen ? (
-        <div style={{ display: "grid", gap: 16 }}>
-          {assistantPanel}
-          {casePanel}
-          {followPanel}
-        </div>
-      ) : null}
-    </div>
-  );
-
-  // Repère 5/6 — rendu principal
-  return (
-    <div style={{ fontFamily: "Arial, sans-serif", background: "linear-gradient(180deg, #eef5f8 0%, #f7fafc 100%)", minHeight: "100vh", padding: isMobile ? 12 : 24, color: "#111827", boxSizing: "border-box" }}>
-      <div style={{ maxWidth: 1640, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", gap: 14, flexWrap: "wrap", marginBottom: 16, position: "sticky", top: 0, zIndex: 20, background: "rgba(238,245,248,0.92)", backdropFilter: "blur(8px)", padding: "6px 0 8px" }}>
-          <div style={{ flex: "1 1 340px" }}>
-            <h1 style={{ margin: 0, fontSize: isMobile ? 28 : 42 }}>🌱 Potager Builder 2.2.4</h1>
-            <div style={{ marginTop: 6, color: "#4b5563", lineHeight: 1.4 }}>
-              Palette compacte + mode pinceau + prévisualisation avant pose.
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <select value={activePotagerId} onChange={(e) => setActivePotagerId(e.target.value)} style={{ ...getInputStyle(), minWidth: 180 }}>
-              {potagers.map((potager) => (
-                <option key={potager.id} value={potager.id}>{potager.name}</option>
-              ))}
-            </select>
-            <button onClick={createPotagerAction} style={button("#2563eb")}>Nouveau</button>
-            <button onClick={duplicatePotager} style={button("#0f766e")}>Dupliquer</button>
-            <button onClick={deletePotager} disabled={potagers.length <= 1} style={button(potagers.length <= 1 ? "#9ca3af" : "#b91c1c")}>Supprimer</button>
-          </div>
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <input value={activePotager?.name || ""} onChange={(e) => updateActivePotager((potager) => ({ ...potager, name: e.target.value }))} style={{ ...getInputStyle(), maxWidth: 420 }} placeholder="Nom du potager" />
-        </div>
-
-        {isMobile ? (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, marginBottom: 14 }}>
-              {tabs.map((tab) => (
-                <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={ghost(activeTab === tab.key)}>
-                  {tab.icon} {tab.label}
+        {builderStep === 1 ? (
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ fontWeight: 700 }}>Structure du jardin</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {structureOrder.map((key) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    updateCell(selectedIndex, (cell) => ({
+                      ...cell,
+                      structure: key,
+                      plant: structures[key].cultivable ? cell.plant : "",
+                      count: structures[key].cultivable ? Math.max(1, Number(cell.count || 1)) : 0,
+                    }));
+                    setBuilderStep(2);
+                  }}
+                  style={chipStyle(selectedCell.structure === key, structures[key].border)}
+                >
+                  {structures[key].icon} {structures[key].label}
                 </button>
               ))}
             </div>
-            <div style={{ display: "grid", gap: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
-                <Metric icon="🌿" label="Plants" value={totals.totalPlants} subtitle="Total" />
-                <Metric icon="💧" label="Arrosage" value={`${totals.waterNeed} L`} subtitle="Jour" />
-                <Metric icon="🧺" label="Récolte" value={`${totals.harvestEstimate} kg`} subtitle="Est." />
+          </div>
+        ) : null}
+
+        {builderStep === 2 ? (
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ fontWeight: 700 }}>Culture</div>
+            {structures[selectedCell.structure].cultivable ? (
+              <>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {plantOrder.map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        updateCell(selectedIndex, (cell) => ({
+                          ...cell,
+                          plant: key,
+                          count: Math.max(1, Number(cell.count || 1)),
+                        }));
+                        setBuilderStep(3);
+                      }}
+                      style={chipStyle(selectedCell.plant === key, plants[key].color)}
+                    >
+                      {plants[key].icon} {plants[key].name}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    updateCell(selectedIndex, (cell) => ({ ...cell, plant: "", count: 0 }));
+                    setBuilderStep(3);
+                  }}
+                  style={softButton(!selectedCell.plant)}
+                >
+                  Laisser sans culture pour l’instant
+                </button>
+              </>
+            ) : (
+              <div style={{ color: "#6b7280", lineHeight: 1.5 }}>
+                Cette structure n’accueille pas de culture. Passe au soleil ou à la note.
               </div>
-              {activeTab === "plan" ? planContent : null}
-              {activeTab === "assistant" ? assistantPanel : null}
-              {activeTab === "assistant" ? casePanel : null}
-              {activeTab === "follow" ? followPanel : null}
+            )}
+          </div>
+        ) : null}
+
+        {builderStep === 3 ? (
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ fontWeight: 700 }}>Exposition de base</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {sunOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => {
+                    updateCell(selectedIndex, (cell) => ({ ...cell, sun: option.value }));
+                    setBuilderStep(4);
+                  }}
+                  style={chipStyle(selectedCell.sun === option.value, "#f59e0b")}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
-          </>
-        ) : (
-          desktopLayout
-        )}
+          </div>
+        ) : null}
+
+        {builderStep === 4 ? (
+          <div style={{ display: "grid", gap: 10 }}>
+            <div style={{ fontWeight: 700 }}>Finition rapide</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button onClick={() => updateCell(selectedIndex, (cell) => ({ ...cell, count: Math.max(0, cell.count - 1) }))} style={softButton(false)}>-1</button>
+              <div style={{ minWidth: 54, textAlign: "center", fontWeight: 800 }}>{selectedCell.count}</div>
+              <button onClick={() => updateCell(selectedIndex, (cell) => ({ ...cell, count: Math.max(0, cell.count + 1) }))} style={softButton(false)}>+1</button>
+              <button onClick={() => updateCell(selectedIndex, (cell) => ({ ...cell, note: "" }))} style={softButton(false)}>Effacer note</button>
+            </div>
+            <textarea
+              value={selectedCell.note}
+              onChange={(e) => updateCell(selectedIndex, (cell) => ({ ...cell, note: e.target.value }))}
+              placeholder="Note rapide sur cette case"
+              style={{ ...fieldStyle(), minHeight: 86, resize: "vertical", fontFamily: "Arial, sans-serif" }}
+            />
+            <div style={{ background: "#f8fafc", borderRadius: 12, padding: 12, border: "1px solid #e5e7eb" }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Conseil IA</div>
+              <div style={{ color: "#334155", lineHeight: 1.5 }}>{selectedAdvice}</div>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button onClick={() => updateCell(selectedIndex, () => createCell())} style={softButton(false)}>Vider case</button>
+              <button onClick={closeEditor} style={button("#111827")}>Terminer</button>
+            </div>
+          </div>
+        ) : null}
       </div>
+    );
+
+    if (isMobile) {
+      return (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.24)", zIndex: 50 }} onClick={closeEditor}>
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0 }} onClick={(e) => e.stopPropagation()}>
+            {content}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ position: "fixed", left: editor.x, top: editor.y, zIndex: 60 }}>
+        {content}
+      </div>
+    );
+  }
+
+  // Repère 5/6 — rendu principal
+  return (
+    <div
+      style={{
+        fontFamily: "Arial, sans-serif",
+        background: pageBackground,
+        minHeight: "100vh",
+        padding: isMobile ? 12 : 18,
+        color: "#111827",
+        boxSizing: "border-box",
+      }}
+    >
+      <div style={{ maxWidth: 1680, margin: "0 auto" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: isMobile ? "stretch" : "center",
+            gap: 14,
+            flexWrap: "wrap",
+            marginBottom: 14,
+            position: "sticky",
+            top: 0,
+            zIndex: 20,
+            padding: "6px 0 8px",
+            backdropFilter: "blur(8px)",
+            background: "rgba(237,244,248,0.85)",
+          }}
+        >
+          <div>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 28 : 38 }}>🌱 Assistant Potager 2.3</h1>
+            <div style={{ color: "#4b5563", marginTop: 6 }}>Plan minimaliste • micro-cases • structure + culture séparées • édition directe sur la case</div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={createNewPlan} style={button("#2563eb")}>Nouveau</button>
+            <button onClick={duplicatePlan} style={button("#0f766e")}>Dupliquer</button>
+            <button onClick={deletePlan} style={button(plans.length > 1 ? "#b91c1c" : "#9ca3af")} disabled={plans.length <= 1}>Supprimer</button>
+            <button onClick={() => setFullscreenPlan(true)} style={button("#111827")}>Plein écran plan</button>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+          {tabs.map((item) => (
+            <button key={item.key} onClick={() => setTab(item.key)} style={softButton(tab === item.key)}>
+              {item.icon} {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : focusOnlyPlan && tab === "plan" ? "1fr" : "minmax(860px, 1fr) 390px", gap: 18, alignItems: "start" }}>
+          <div style={{ display: "grid", gap: 16 }}>
+            <Card
+              title="🗺 Plan"
+              right={
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button onClick={() => setFocusOnlyPlan((v) => !v)} style={softButton(focusOnlyPlan)}>
+                    {focusOnlyPlan ? "Plan seul" : "Plan + panneaux"}
+                  </button>
+                  <button onClick={() => updateActivePlan((plan) => ({ ...plan, backgroundValidated: !plan.backgroundValidated }))} style={softButton(activePlan?.backgroundValidated)}>
+                    Fond stylisé
+                  </button>
+                </div>
+              }
+            >
+              <div style={{ display: "grid", gap: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "220px 1fr", gap: 10 }}>
+                  <label>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Plan actif</div>
+                    <select value={activePlanId} onChange={(e) => { setActivePlanId(e.target.value); setSelectedIndex(null); closeEditor(); }} style={fieldStyle()}>
+                      {plans.map((plan) => (
+                        <option key={plan.id} value={plan.id}>{plan.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Nom</div>
+                    <input value={activePlan?.name || ""} onChange={(e) => updateActivePlan((plan) => ({ ...plan, name: e.target.value }))} style={fieldStyle()} />
+                  </label>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {presets.map((preset) => (
+                    <button key={preset.key} onClick={() => applyPreset(preset)} style={chipStyle(false, "#2563eb")}>{preset.label}</button>
+                  ))}
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(6, minmax(120px, 1fr))", gap: 10 }}>
+                  <label>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Lignes</div>
+                    <input type="number" min={2} max={20} value={activePlan?.rows || 5} onChange={(e) => resizeGrid(Number(e.target.value) || 5, activePlan?.cols || 8)} style={fieldStyle()} />
+                  </label>
+                  <label>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Colonnes</div>
+                    <input type="number" min={2} max={20} value={activePlan?.cols || 8} onChange={(e) => resizeGrid(activePlan?.rows || 5, Number(e.target.value) || 8)} style={fieldStyle()} />
+                  </label>
+                  <label>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Orientation</div>
+                    <select value={activePlan?.orientation || "south"} onChange={(e) => updateActivePlan((plan) => ({ ...plan, orientation: e.target.value }))} style={fieldStyle()}>
+                      <option value="south">Sud</option>
+                      <option value="north">Nord</option>
+                      <option value="east">Est</option>
+                      <option value="west">Ouest</option>
+                    </select>
+                  </label>
+                  <label>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Côté lumineux</div>
+                    <select value={activePlan?.brightSide || "south"} onChange={(e) => updateActivePlan((plan) => ({ ...plan, brightSide: e.target.value }))} style={fieldStyle()}>
+                      <option value="south">Sud</option>
+                      <option value="north">Nord</option>
+                      <option value="east">Est</option>
+                      <option value="west">Ouest</option>
+                    </select>
+                  </label>
+                  <label>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Côté ombré</div>
+                    <select value={activePlan?.shadySide || "north"} onChange={(e) => updateActivePlan((plan) => ({ ...plan, shadySide: e.target.value }))} style={fieldStyle()}>
+                      <option value="north">Nord</option>
+                      <option value="south">Sud</option>
+                      <option value="east">Est</option>
+                      <option value="west">Ouest</option>
+                    </select>
+                  </label>
+                  <label>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Zoom</div>
+                    <input type="range" min={55} max={150} step={5} value={zoom} onChange={(e) => updateActivePlan((plan) => ({ ...plan, zoom: Number(e.target.value) }))} style={{ width: "100%" }} />
+                    <div style={{ fontSize: 12, color: "#64748b" }}>{zoom}%</div>
+                  </label>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {compactStructureSummary.map((item) => (
+                    <div key={item} style={{ background: "#f8fafc", border: "1px solid #e5e7eb", padding: "6px 10px", borderRadius: 999, fontSize: 13, color: "#475569" }}>{item}</div>
+                  ))}
+                </div>
+
+                <div
+                  ref={planRef}
+                  style={{
+                    background: "#ffffffc9",
+                    borderRadius: 18,
+                    padding: 14,
+                    border: "1px solid rgba(0,0,0,0.07)",
+                    overflow: "auto",
+                    minHeight: isMobile ? 360 : 520,
+                  }}
+                >
+                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${activePlan?.cols || 1}, ${cellSize}px)`, gap: 6, width: "max-content", margin: "0 auto" }}>
+                    {activePlan?.cells.map((cell, index) => renderCell(cell, index))}
+                  </div>
+                </div>
+
+                {selectedCell ? (
+                  <div style={{ background: "#f8fafc", borderRadius: 14, padding: 12, border: "1px solid #e5e7eb", display: "grid", gap: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                      <div>
+                        <strong>Case {selectedIndex + 1}</strong> • {structures[selectedCell.structure].label}{selectedCell.plant ? ` • ${plants[selectedCell.plant].name}` : ""}
+                      </div>
+                      <div style={{ color: "#64748b" }}>{sunLabel(selectedCell.sun)}</div>
+                    </div>
+                    <div style={{ color: "#334155", lineHeight: 1.5 }}>{selectedAdvice}</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {structureOrder.map((key) => (
+                        <button key={key} onClick={() => quickFill(selectedIndex, key)} style={chipStyle(selectedCell.structure === key, structures[key].border)}>
+                          {structures[key].icon || "·"} {structures[key].label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button onClick={() => setBuilderStep(1) || setEditor((prev) => ({ ...prev, open: true }))} style={button("#111827")}>Éditer la case</button>
+                      <button onClick={() => updateCell(selectedIndex, () => createCell())} style={softButton(false)}>Vider</button>
+                      <button onClick={() => {
+                        const nextIndex = activePlan.cells.findIndex((cell, i) => i !== selectedIndex && cell.structure === "empty" && !cell.plant);
+                        if (nextIndex !== -1) duplicateSelectedInto(nextIndex);
+                      }} style={softButton(false)}>Dupliquer vers une case vide</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ color: "#64748b", fontSize: 14 }}>Clique une case du plan pour l’éditer directement avec le panneau flottant.</div>
+                )}
+              </div>
+            </Card>
+
+            {tab !== "plan" || !focusOnlyPlan ? (
+              <Card title="📌 Alertes du moment">
+                {alerts.length ? (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {alerts.map((alert, i) => (
+                      <div key={`${alert}-${i}`} style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 12, padding: "10px 12px", lineHeight: 1.45 }}>
+                        {alert}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ color: "#64748b" }}>Aucune alerte forte pour l’instant.</div>
+                )}
+              </Card>
+            ) : null}
+          </div>
+
+          {(!focusOnlyPlan || tab !== "plan") && (
+            <div style={{ display: "grid", gap: 16 }}>
+              {tab === "assistant" ? (
+                <>
+                  <Card title="🧭 Diagnostic du jardin">
+                    <div style={{ display: "grid", gap: 12 }}>
+                      <label>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Notes de diagnostic</div>
+                        <textarea value={activePlan?.diagnosisNote || ""} onChange={(e) => updateActivePlan((plan) => ({ ...plan, diagnosisNote: e.target.value }))} style={{ ...fieldStyle(), minHeight: 94, resize: "vertical", fontFamily: "Arial, sans-serif" }} placeholder="Exemple : fond droit très chaud, bord gauche plus ombré, vent venant du côté est..." />
+                      </label>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button onClick={() => fileRef.current?.click()} style={button("#7c3aed")}>{photoUploading ? "Chargement..." : "Ajouter une photo"}</button>
+                        <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={uploadPhoto} />
+                      </div>
+                      {activePlan?.photoDataUrl ? (
+                        <img src={activePlan.photoDataUrl} alt="Diagnostic potager" style={{ width: "100%", borderRadius: 14, border: "1px solid #e5e7eb" }} />
+                      ) : (
+                        <div style={{ color: "#64748b" }}>Ajoute une photo pour garder un support visuel de diagnostic dans l’application.</div>
+                      )}
+                      <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 14, padding: 12, lineHeight: 1.55 }}>
+                        <div><strong>Orientation :</strong> {sideToFrench(activePlan?.orientation || "south")}</div>
+                        <div><strong>Côté lumineux :</strong> {sideToFrench(activePlan?.brightSide || "south")}</div>
+                        <div><strong>Côté ombré :</strong> {sideToFrench(activePlan?.shadySide || "north")}</div>
+                        <div style={{ marginTop: 8, color: "#334155" }}>
+                          Conseil : utilise mur, terrasse et clôture comme repères de terrain. Ensuite place tomates et piments du côté le plus chaud, salades et persil vers le côté plus frais.
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card title="🤖 Suggestion case par case">
+                    {selectedCell ? (
+                      <div style={{ display: "grid", gap: 10 }}>
+                        <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 14, padding: 12, lineHeight: 1.55 }}>
+                          {selectedAdvice}
+                        </div>
+                        {selectedCell.plant ? (
+                          <>
+                            <div style={{ fontWeight: 700 }}>Meilleures cases potentielles pour {plants[selectedCell.plant].name.toLowerCase()}</div>
+                            <div style={{ display: "grid", gap: 8 }}>
+                              {bestSlots.map((slot) => (
+                                <div key={slot.index} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", display: "flex", justifyContent: "space-between", gap: 12 }}>
+                                  <div>Case {slot.index + 1} • {structures[slot.cell.structure].label}</div>
+                                  <strong>{slot.score.toFixed(1)}</strong>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ color: "#64748b" }}>Choisis une culture sur la case sélectionnée pour obtenir un classement détaillé.</div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ color: "#64748b" }}>Sélectionne une case pour voir les conseils ciblés.</div>
+                    )}
+                  </Card>
+                </>
+              ) : null}
+
+              {tab === "follow" ? (
+                <>
+                  <Card title="⏰ Rappels">
+                    {allReminders.length ? (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        {allReminders.map((reminder) => (
+                          <div key={reminder.id} style={{ background: reminder.done ? "#f0fdf4" : isLateReminder(reminder) ? "#fff7ed" : "#f8fafc", border: `1px solid ${reminder.done ? "#86efac" : isLateReminder(reminder) ? "#fed7aa" : "#e5e7eb"}`, borderRadius: 12, padding: "10px 12px", display: "grid", gap: 6 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                              <strong>{reminder.title}</strong>
+                              <span>{formatDate(reminder.dueDate)}</span>
+                            </div>
+                            <div>Case {reminder.cellIndex + 1}{reminder.plant ? ` • ${plants[reminder.plant].name}` : ""}</div>
+                            <div>Délai moyen : {reminder.average}</div>
+                            <div>Quantité concernée : {reminder.quantity}</div>
+                            <div>Signes : {reminder.signs.join(" • ")}</div>
+                            <div>Conseil : {reminder.advice}</div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <button onClick={() => markReminder(reminder.cellIndex, reminder.id, !reminder.done)} style={softButton(reminder.done)}>{reminder.done ? "Marquer à refaire" : "Marquer terminé"}</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ color: "#64748b" }}>Aucun rappel pour l’instant.</div>
+                    )}
+                  </Card>
+
+                  <Card title="✅ Actions validées sur la case sélectionnée">
+                    {selectedCell ? (
+                      <div style={{ display: "grid", gap: 10 }}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {Object.entries(actionTemplates).map(([key, template]) => (
+                            <button key={key} onClick={() => validateAction(selectedIndex, key)} style={chipStyle(false, "#0f766e")}>
+                              {template.icon} {template.label}
+                            </button>
+                          ))}
+                        </div>
+                        {selectedCell.actions.length ? (
+                          <div style={{ display: "grid", gap: 8 }}>
+                            {selectedCell.actions.map((action) => (
+                              <div key={action.id} style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px" }}>
+                                {action.label} • {formatDate(action.date)} • quantité {action.quantity}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ color: "#64748b" }}>Aucune action encore validée sur cette case.</div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ color: "#64748b" }}>Sélectionne une case pour générer des rappels intelligents.</div>
+                    )}
+                  </Card>
+                </>
+              ) : null}
+
+              {tab === "plan" ? (
+                <>
+                  <Card title="📊 Vue rapide">
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <div style={{ background: "#f8fafc", borderRadius: 12, padding: 12, border: "1px solid #e5e7eb" }}>Plants totaux : <strong>{stats.plants}</strong></div>
+                      <div style={{ background: "#f8fafc", borderRadius: 12, padding: 12, border: "1px solid #e5e7eb" }}>Arrosage estimé : <strong>{stats.water.toFixed(1)} L / jour</strong></div>
+                      <div style={{ background: "#f8fafc", borderRadius: 12, padding: 12, border: "1px solid #e5e7eb" }}>Récolte estimée : <strong>{stats.harvest.toFixed(1)} kg</strong></div>
+                      <div style={{ background: "#f8fafc", borderRadius: 12, padding: 12, border: "1px solid #e5e7eb" }}>Météo {CITY} : <strong>{weather ? `${weather.temperature}°C • ${weather.windspeed} km/h` : "indisponible"}</strong></div>
+                    </div>
+                  </Card>
+
+                  <Card title="🧱 Outils structurels express">
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {structureOrder.map((key) => (
+                        <button key={key} onClick={() => selectedIndex !== null && quickFill(selectedIndex, key)} style={chipStyle(selectedCell?.structure === key, structures[key].border)}>
+                          {structures[key].icon || "·"} {structures[key].label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ color: "#64748b", marginTop: 10, lineHeight: 1.5 }}>
+                      Mur, terrasse et clôture sont conservés comme repères du jardin. Ils restent discrets dans le plan, mais améliorent beaucoup la lecture du terrain.
+                    </div>
+                  </Card>
+                </>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {renderFloatingEditor()}
+
+      {fullscreenPlan && activePlan ? (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.94)", zIndex: 80, padding: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#fff", marginBottom: 14, gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 28, fontWeight: 800 }}>{activePlan.name}</div>
+              <div style={{ opacity: 0.8 }}>Plein écran plan • clique une case pour l’éditer</div>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button onClick={() => updateActivePlan((plan) => ({ ...plan, zoom: clamp(plan.zoom - 10, 55, 150) }))} style={softButton(false)}>- Zoom</button>
+              <button onClick={() => updateActivePlan((plan) => ({ ...plan, zoom: clamp(plan.zoom + 10, 55, 150) }))} style={softButton(false)}>+ Zoom</button>
+              <button onClick={() => setFullscreenPlan(false)} style={button("#111827")}>Fermer</button>
+            </div>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.96)", borderRadius: 18, padding: 16, height: "calc(100vh - 120px)", overflow: "auto" }}>
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(${activePlan.cols}, ${cellSize}px)`, gap: 6, width: "max-content", margin: "0 auto" }}>
+              {activePlan.cells.map((cell, index) => renderCell(cell, index, true))}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
