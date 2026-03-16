@@ -682,6 +682,9 @@ export default function App() {
   });
   const [photoPreview, setPhotoPreview] = useState("");
   const [planEditMode, setPlanEditMode] = useState("select");
+  const [showPlanTools, setShowPlanTools] = useState(false);
+  const [showDesktopSidebar, setShowDesktopSidebar] = useState(false);
+  const [focusPlan, setFocusPlan] = useState(true);
   const [quickZoneType, setQuickZoneType] = useState("plant");
   const [quickSunBase, setQuickSunBase] = useState(2);
   const importRef = useRef(null);
@@ -1575,267 +1578,216 @@ export default function App() {
     );
   }
 
+
   function renderPlanCard() {
     const quickPresets = planPresets.filter((preset) => quickPresetKeys.includes(preset.key));
+    const selectedCell = activeCellPosition;
+    const compactDesktop = focusPlan && !isMobile;
 
     return (
       <Card
         title="🗺 Plan du jardin"
         right={
-          <div style={{ color: "#6b7280", fontSize: 13, fontWeight: 600 }}>
-            {rows} × {cols} • {terraceText(orientation)}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {!isMobile ? (
+              <button onClick={() => setFocusPlan((value) => !value)} style={chipBtn(focusPlan)}>
+                {focusPlan ? "Mode focus" : "Mode complet"}
+              </button>
+            ) : null}
+            {!isMobile ? (
+              <button onClick={() => setShowDesktopSidebar((value) => !value)} style={chipBtn(showDesktopSidebar)}>
+                {showDesktopSidebar ? "Masquer panneaux" : "Afficher panneaux"}
+              </button>
+            ) : null}
+            <div style={{ color: "#6b7280", fontSize: 13, fontWeight: 700 }}>
+              {rows} × {cols} • {terraceText(orientation)}
+            </div>
           </div>
         }
       >
-        <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
-          {isMobile ? (
-            <div style={{ display: "grid", gap: 10 }}>
-              <div style={{ fontWeight: 800 }}>Construction facile</div>
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <button onClick={() => setPlanEditMode("select")} style={chipBtn(planEditMode === "select")}>👆 Sélection</button>
+            <button onClick={() => setPlanEditMode("paint")} style={chipBtn(planEditMode === "paint")}>🎨 Pinceau</button>
+            <button onClick={() => setShowPlanTools((value) => !value)} style={softBtn()}>
+              {showPlanTools ? "Masquer les outils" : "Ouvrir les outils"}
+            </button>
+            <button onClick={addCase} style={primaryBtn("#2563eb")}>+ case</button>
+            <button onClick={addRow} style={primaryBtn("#059669")}>+ ligne</button>
+            <button onClick={addColumn} style={primaryBtn("#0f766e")}>+ colonne</button>
+          </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
+          <div style={{ color: "#6b7280", lineHeight: 1.55, fontSize: 13 }}>
+            Le plan passe maintenant en priorité. Les détails de case et l’assistant restent accessibles, mais ils ne doivent plus écraser la grille.
+          </div>
+
+          {showPlanTools ? (
+            <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 16, padding: 12, display: "grid", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))", gap: 8 }}>
                 {quickPresets.map((preset) => (
-                  <button
-                    key={preset.key}
-                    onClick={() => applyPreset(preset)}
-                    style={chipBtn(activePresetKey === preset.key)}
-                  >
+                  <button key={preset.key} onClick={() => applyPreset(preset)} style={chipBtn(activePresetKey === preset.key)}>
                     {preset.label}
                   </button>
                 ))}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <button onClick={() => setPlanEditMode("select")} style={chipBtn(planEditMode === "select")}>👆 Sélection</button>
-                <button onClick={() => setPlanEditMode("paint")} style={chipBtn(planEditMode === "paint")}>🎨 Peindre</button>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(6, minmax(0, 1fr))", gap: 8 }}>
+                {quickZoneTools.map((tool) => (
+                  <button key={tool.key} onClick={() => setQuickZoneType(tool.key)} style={chipBtn(quickZoneType === tool.key)}>
+                    {tool.icon} {tool.label}
+                  </button>
+                ))}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
-                <button onClick={addCase} style={primaryBtn("#2563eb")}>+ case</button>
-                <button onClick={addRow} style={primaryBtn("#059669")}>+ ligne</button>
-                <button onClick={addColumn} style={primaryBtn("#0f766e")}>+ col.</button>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
-                <button onClick={removeRow} style={softBtn()}>- ligne</button>
-                <button onClick={removeColumn} style={softBtn()}>- col.</button>
-                <button onClick={() => setMobileTab("assistant")} style={softBtn()}>Assistant</button>
-              </div>
-
-              <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 14, padding: 12, display: "grid", gap: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                  <strong>Outil rapide</strong>
-                  <span style={{ fontSize: 12, color: "#6b7280" }}>{planEditMode === "paint" ? "Tape sur une case pour appliquer" : "Tape sur une case pour la choisir"}</span>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
-                  {quickZoneTools.map((tool) => (
-                    <button key={tool.key} onClick={() => setQuickZoneType(tool.key)} style={chipBtn(quickZoneType === tool.key)}>
-                      {tool.icon} {tool.label}
+              {quickZoneType === "plant" ? (
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(4, minmax(0, 1fr))" : "repeat(8, minmax(0, 1fr))", gap: 8 }}>
+                  {quickPlantFavorites.map((key) => (
+                    <button key={key} onClick={() => updateActivePotager((potager) => ({ ...potager, quickPlant: key }))} style={chipBtn(quickPlant === key)}>
+                      {plants[key].icon}
                     </button>
                   ))}
-                </div>
-
-                {quickZoneType === "plant" ? (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
-                    {quickPlantFavorites.map((key) => (
-                      <button key={key} onClick={() => updateActivePotager((potager) => ({ ...potager, quickPlant: key }))} style={chipBtn(quickPlant === key)}>
-                        {plants[key].icon}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
-                  {[0, 1, 2, 3].map((value) => (
-                    <button key={value} onClick={() => setQuickSunBase(value)} style={chipBtn(quickSunBase === value)}>
-                      ☀ {value}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button onClick={() => setPlanEditMode("select")} style={chipBtn(planEditMode === "select")}>👆 Sélection</button>
-                <button onClick={() => setPlanEditMode("paint")} style={chipBtn(planEditMode === "paint")}>🎨 Peindre</button>
-                <button onClick={() => setMobileTab("assistant")} style={softBtn()}>Assistant guidé</button>
-                <button onClick={addCase} style={primaryBtn("#2563eb")}>+ case</button>
-                <button onClick={addRow} style={primaryBtn("#059669")}>+ ligne</button>
-                <button onClick={removeRow} style={softBtn()}>- ligne</button>
-                <button onClick={addColumn} style={primaryBtn("#0f766e")}>+ colonne</button>
-                <button onClick={removeColumn} style={softBtn()}>- colonne</button>
-              </div>
-
-              {planEditMode === "paint" ? (
-                <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 14, padding: 12, display: "grid", gap: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                    <strong>Pinceau rapide</strong>
-                    <span style={{ fontSize: 12, color: "#6b7280" }}>Clique une case pour appliquer l’outil choisi</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {quickZoneTools.map((tool) => (
-                      <button key={tool.key} onClick={() => setQuickZoneType(tool.key)} style={chipBtn(quickZoneType === tool.key)}>
-                        {tool.icon} {tool.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {[0, 1, 2, 3].map((value) => (
-                      <button key={value} onClick={() => setQuickSunBase(value)} style={chipBtn(quickSunBase === value)}>
-                        ☀ {value}
-                      </button>
-                    ))}
-                    {quickZoneType === "plant" ? (
-                      <>
-                        {quickPlantFavorites.slice(0, 6).map((key) => (
-                          <button key={key} onClick={() => updateActivePotager((potager) => ({ ...potager, quickPlant: key }))} style={chipBtn(quickPlant === key)}>
-                            {plants[key].icon} {plants[key].name}
-                          </button>
-                        ))}
-                      </>
-                    ) : null}
-                  </div>
                 </div>
               ) : null}
-            </>
-          )}
 
-          <label>
-            <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Zoom de la grille</div>
-            <input
-              type="range"
-              min={60}
-              max={160}
-              step={5}
-              value={zoom}
-              onChange={(e) => updateActivePotager((potager) => ({ ...potager, zoom: Number(e.target.value) }))}
-              style={{ width: "100%" }}
-            />
-            <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
-              {zoom}% • {zoomText(zoom)} • gabarit {rows} × {cols}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
+                {[0, 1, 2, 3].map((value) => (
+                  <button key={value} onClick={() => setQuickSunBase(value)} style={chipBtn(quickSunBase === value)}>
+                    ☀ {value}
+                  </button>
+                ))}
+              </div>
+
+              <label>
+                <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Zoom du plan</div>
+                <input
+                  type="range"
+                  min={60}
+                  max={160}
+                  step={5}
+                  value={zoom}
+                  onChange={(e) => updateActivePotager((potager) => ({ ...potager, zoom: Number(e.target.value) }))}
+                  style={{ width: "100%" }}
+                />
+                <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>{zoom}% • {zoomText(zoom)}</div>
+              </label>
             </div>
-          </label>
-        </div>
+          ) : null}
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-          <button onClick={insertAfterSelected} style={primaryBtn("#1d4ed8")}>Insérer après</button>
-          <button onClick={duplicateSelected} style={primaryBtn("#0f766e")}>Dupliquer</button>
-          <button onClick={deleteSelected} disabled={cells.length <= 1} style={primaryBtn(cells.length > 1 ? "#b91c1c" : "#9ca3af")}>Supprimer</button>
-          <button onClick={regenerateLabels} style={softBtn()}>Renommer les cases</button>
-        </div>
-
-        <div style={{ overflowX: "auto", paddingBottom: 6 }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(${cols}, minmax(${cellMinWidth}px, 1fr))`,
-              gap: 14,
-              minWidth: "max-content",
-            }}
-          >
-            {cellsWithPosition.map((cell) => {
-              const selected = selectedId === cell.id;
-              const isPlant = cell.zoneType === "plant";
-              const showCompact = isMobile && zoom <= 95;
-              return (
-                <div
-                  key={cell.id}
-                  onClick={() => handlePlanCellTap(cell)}
-                  style={{
-                    background: bgOf(cell),
-                    borderRadius: 16,
-                    minHeight: cellMinHeight,
-                    padding: zoom <= 85 ? 10 : 14,
-                    cursor: "pointer",
-                    color: cell.zoneType === "terrace" || cell.zoneType === "tree" ? "#fff" : "#111827",
-                    boxShadow: selected ? "0 0 0 3px #111827 inset, 0 10px 24px rgba(0,0,0,0.16)" : "0 10px 24px rgba(0,0,0,0.08)",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between",
-                    position: "relative",
-                  }}
-                >
-                  {planEditMode === "paint" ? (
-                    <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(17,24,39,0.8)", color: "#fff", borderRadius: 999, padding: "3px 8px", fontSize: 11, fontWeight: 700 }}>
-                      pinceau
-                    </div>
-                  ) : null}
-
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
-                      <div style={{ fontWeight: 800, lineHeight: 1.25, fontSize: titleSize }}>
-                        {showCompact ? `L${cell.row + 1}C${cell.col + 1}` : cell.label}
-                      </div>
-                      <div style={{ fontSize: Math.max(11, textSize - 2), opacity: 0.95, background: "rgba(255,255,255,0.22)", borderRadius: 999, padding: "4px 8px", whiteSpace: "nowrap" }}>
-                        L{cell.row + 1}C{cell.col + 1}
-                      </div>
-                    </div>
-
-                    <div style={{ fontSize: iconSize, marginTop: 8 }}>{iconOf(cell)}</div>
-
-                    <div style={{ marginTop: 6, fontWeight: 700, fontSize: textSize }}>
-                      {isPlant ? plants[cell.plant]?.name || "Culture" : zoneMeta[cell.zoneType]?.label || "Zone"}
-                    </div>
-
-                    <div style={{ marginTop: 4, fontSize: Math.max(11, textSize - 2), color: "#374151" }}>
-                      ☀ {sunOf(cell)}/3 • {cell.exposureTag}
-                    </div>
-
-                    {!showCompact && cell.note ? (
-                      <div style={{ marginTop: 8, fontSize: Math.max(11, textSize - 2), opacity: 0.95, lineHeight: 1.45, background: "rgba(255,255,255,0.18)", borderRadius: 10, padding: "6px 8px" }}>
-                        {cell.note}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div style={{ fontSize: textSize, lineHeight: 1.5 }}>
-                    <div>Plants : {isPlant ? Number(cell.count || 0) : "—"}</div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-                      {isPlant ? (
-                        <>
-                          <button onClick={(e) => { e.stopPropagation(); removePlant(cell); }} style={miniBtn()}>-1</button>
-                          <button onClick={(e) => { e.stopPropagation(); addPlant(cell); }} style={miniBtn()}>+1</button>
-                          <button onClick={(e) => { e.stopPropagation(); applyQuick(cell); }} style={miniBtn("rgba(255,255,255,0.88)")}>{plants[quickPlant].icon}</button>
-                        </>
-                      ) : (
-                        <button onClick={(e) => { e.stopPropagation(); applyQuick(cell); }} style={miniBtn()}>Culture</button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {isMobile && activeCellPosition ? (
-          <div style={{ marginTop: 14, background: "#111827", color: "#fff", borderRadius: 16, padding: 14, display: "grid", gap: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+          <div style={{ background: compactDesktop ? "#eef2ff" : "#f8fafc", border: compactDesktop ? "1px solid #c7d2fe" : "1px solid #e5e7eb", borderRadius: 18, padding: compactDesktop ? 18 : 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
               <div>
-                <div style={{ fontWeight: 800 }}>{activeCellPosition.label}</div>
-                <div style={{ fontSize: 13, opacity: 0.9 }}>
-                  {zoneMeta[activeCellPosition.zoneType]?.icon || "⬜"} {activeCellPosition.zoneType === "plant" ? plants[activeCellPosition.plant]?.name : zoneMeta[activeCellPosition.zoneType]?.label} • ☀ {sunOf(activeCellPosition)}/3
+                <div style={{ fontWeight: 800 }}>Plan lisible</div>
+                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 3 }}>
+                  {planEditMode === "paint" ? `Pinceau actif : ${quickZoneTools.find((tool) => tool.key === quickZoneType)?.label || quickZoneType} • soleil ${quickSunBase}` : "Clique une case pour la sélectionner"}
                 </div>
               </div>
-              <button onClick={() => setMobileTab("cell")} style={{ ...softBtn(), border: "none" }}>Ouvrir la case</button>
+              <div style={{ fontSize: 13, color: "#374151", background: "rgba(255,255,255,0.8)", border: "1px solid #e5e7eb", borderRadius: 12, padding: "8px 10px" }}>
+                {selectedCell ? `${selectedCell.label} • ${selectedCell.exposureTag} • ☀ ${sunOf(selectedCell)}/3` : "Aucune case sélectionnée"}
+              </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
-              <button onClick={() => applyBrushToCell(activeCellPosition)} style={softBtn()}>Appliquer outil</button>
-              {activeCellPosition.zoneType === "plant" ? (
-                <button onClick={() => addPlant(activeCellPosition)} style={softBtn()}>+1 plant</button>
-              ) : (
-                <button onClick={() => applyQuick(activeCellPosition)} style={softBtn()}>Mettre {plants[quickPlant].icon}</button>
-              )}
-              <button onClick={() => setPlanEditMode(planEditMode === "paint" ? "select" : "paint")} style={softBtn()}>
-                {planEditMode === "paint" ? "Mode select" : "Mode pinceau"}
-              </button>
+
+            <div style={{ overflowX: "auto", paddingBottom: 6 }}>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, minmax(${cellMinWidth}px, 1fr))`, gap: compactDesktop ? 16 : 12, minWidth: isMobile ? "max-content" : "max-content" }}>
+                {cellsWithPosition.map((cell) => {
+                  const selected = selectedId === cell.id;
+                  const isPlant = cell.zoneType === "plant";
+                  const compactCell = isMobile || focusPlan;
+                  return (
+                    <div
+                      key={cell.id}
+                      onClick={() => handleGridCellClick(cell)}
+                      style={{
+                        background: bgOf(cell),
+                        borderRadius: 18,
+                        minHeight: compactDesktop ? Math.max(170, cellMinHeight - 14) : cellMinHeight,
+                        padding: compactCell ? 12 : 14,
+                        cursor: "pointer",
+                        color: cell.zoneType === "terrace" || cell.zoneType === "tree" ? "#fff" : "#111827",
+                        boxShadow: selected ? "0 0 0 3px #111827 inset, 0 10px 24px rgba(0,0,0,0.16)" : "0 8px 18px rgba(0,0,0,0.06)",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        position: "relative",
+                        transition: "transform 0.12s ease, box-shadow 0.12s ease",
+                      }}
+                    >
+                      {selected ? (
+                        <div style={{ position: "absolute", top: 10, right: 10, background: "#111827", color: "#fff", borderRadius: 999, padding: "3px 8px", fontSize: 11, fontWeight: 700 }}>
+                          active
+                        </div>
+                      ) : null}
+
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
+                          <div style={{ fontWeight: 800, lineHeight: 1.2, fontSize: titleSize }}>{compactCell ? cell.label : `${cell.label} · L${cell.row + 1}C${cell.col + 1}`}</div>
+                        </div>
+
+                        <div style={{ fontSize: compactDesktop ? Math.max(32, iconSize - 6) : iconSize, marginTop: 8 }}>{iconOf(cell)}</div>
+                        <div style={{ marginTop: 6, fontWeight: 700, fontSize: textSize }}>{isPlant ? plants[cell.plant]?.name || "Culture" : zoneMeta[cell.zoneType]?.label || "Zone"}</div>
+                        <div style={{ marginTop: 4, fontSize: Math.max(11, textSize - 2), color: cell.zoneType === "terrace" || cell.zoneType === "tree" ? "rgba(255,255,255,0.92)" : "#374151" }}>
+                          ☀ {sunOf(cell)}/3 • {cell.exposureTag}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 12 }}>
+                        <div style={{ fontSize: Math.max(12, textSize - 1), fontWeight: 700 }}>
+                          {isPlant ? `${Number(cell.count || 0)} plant${Number(cell.count || 0) > 1 ? "s" : ""}` : zoneMeta[cell.zoneType]?.label || "Zone"}
+                        </div>
+                        {selected ? (
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                            {isPlant ? (
+                              <>
+                                <button onClick={(e) => { e.stopPropagation(); removePlant(cell); }} style={miniBtn()}>-1</button>
+                                <button onClick={(e) => { e.stopPropagation(); addPlant(cell); }} style={miniBtn()}>+1</button>
+                              </>
+                            ) : (
+                              <button onClick={(e) => { e.stopPropagation(); applyQuick(cell); }} style={miniBtn()}>Culture</button>
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        ) : null}
+
+          {selectedCell ? (
+            <div style={{ background: isMobile ? "#111827" : "#ffffff", color: isMobile ? "#fff" : "#111827", borderRadius: 16, border: isMobile ? "none" : "1px solid #e5e7eb", padding: 14, display: "grid", gap: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontWeight: 800 }}>{selectedCell.label}</div>
+                  <div style={{ fontSize: 13, opacity: 0.9 }}>
+                    {zoneMeta[selectedCell.zoneType]?.icon || "⬜"} {selectedCell.zoneType === "plant" ? plants[selectedCell.plant]?.name : zoneMeta[selectedCell.zoneType]?.label} • {selectedCell.exposureTag} • ☀ {sunOf(selectedCell)}/3
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {isMobile ? <button onClick={() => setMobileTab("cell")} style={softBtn()}>Ouvrir la case</button> : null}
+                  {!isMobile && !showDesktopSidebar ? <button onClick={() => setShowDesktopSidebar(true)} style={softBtn()}>Ouvrir les panneaux</button> : null}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button onClick={() => applyBrushToCell(selectedCell)} style={softBtn()}>Appliquer l’outil</button>
+                {selectedCell.zoneType === "plant" ? (
+                  <>
+                    <button onClick={() => addPlant(selectedCell)} style={softBtn()}>+1 plant</button>
+                    <button onClick={() => removePlant(selectedCell)} style={softBtn()}>-1 plant</button>
+                  </>
+                ) : (
+                  <button onClick={() => applyQuick(selectedCell)} style={softBtn()}>Passer en culture</button>
+                )}
+                <button onClick={() => setPlanEditMode(planEditMode === "paint" ? "select" : "paint")} style={softBtn()}>
+                  {planEditMode === "paint" ? "Mode sélection" : "Mode pinceau"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
       </Card>
     );
   }
+
 
   function renderAssistantPanel() {
     return (
@@ -2261,16 +2213,45 @@ export default function App() {
     );
   }
 
+
   function renderDesktopLeft() {
+    const secondaryPanels = (
+      <div style={{ display: "grid", gridTemplateColumns: focusPlan ? "repeat(2, minmax(280px, 1fr))" : "repeat(3, minmax(260px, 1fr))", gap: 16, alignItems: "start" }}>
+        <div style={{ display: "grid", gap: 16 }}>
+          {renderCellPanel()}
+        </div>
+        <div style={{ display: "grid", gap: 16 }}>
+          {renderRemindersPanel()}
+        </div>
+        {!focusPlan ? (
+          <div style={{ display: "grid", gap: 16 }}>
+            {renderAssistantPanel()}
+          </div>
+        ) : null}
+      </div>
+    );
+
     return (
       <div style={{ display: "grid", gap: 18 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(180px, 1fr))", gap: 14 }}>
-          <StatCard icon="🌿" label="Plants au total" value={totalPlants} subtitle="Dans le potager actif" />
-          <StatCard icon="💧" label="Arrosage estimé / jour" value={`${waterNeed} L`} subtitle="Estimation théorique" />
-          <StatCard icon="🧺" label="Récolte estimée" value={`${harvestEstimate} kg`} subtitle="Potentiel global approximatif" />
-        </div>
+        {!focusPlan ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(180px, 1fr))", gap: 14 }}>
+            <StatCard icon="🌿" label="Plants au total" value={totalPlants} subtitle="Dans le potager actif" />
+            <StatCard icon="💧" label="Arrosage estimé / jour" value={`${waterNeed} L`} subtitle="Estimation théorique" />
+            <StatCard icon="🧺" label="Récolte estimée" value={`${harvestEstimate} kg`} subtitle="Potentiel global approximatif" />
+          </div>
+        ) : null}
 
         {renderPlanCard()}
+
+        {focusPlan ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(180px, 1fr))", gap: 14 }}>
+            <StatCard icon="🌿" label="Plants au total" value={totalPlants} subtitle="Dans le potager actif" />
+            <StatCard icon="💧" label="Arrosage estimé / jour" value={`${waterNeed} L`} subtitle="Estimation théorique" />
+            <StatCard icon="🧺" label="Récolte estimée" value={`${harvestEstimate} kg`} subtitle="Potentiel global approximatif" />
+          </div>
+        ) : null}
+
+        {!showDesktopSidebar ? secondaryPanels : null}
 
         <Card title="📊 Répartition des plants">
           {breakdown.length ? (
@@ -2289,27 +2270,16 @@ export default function App() {
             <div style={{ color: "#6b7280" }}>Aucun plant enregistré.</div>
           )}
         </Card>
-
-        <Card title="🗓️ Tâches du mois">
-          {monthTasks.length ? (
-            <div style={{ display: "grid", gap: 8 }}>
-              {monthTasks.map((task, index) => (
-                <div key={`${task}-${index}`} style={{ background: "#ecfeff", border: "1px solid #a5f3fc", borderRadius: 12, padding: "10px 12px", lineHeight: 1.45 }}>
-                  {task}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ color: "#6b7280" }}>Aucune tâche détectée.</div>
-          )}
-        </Card>
       </div>
     );
   }
 
+
+
   function renderDesktopRight() {
+    if (!showDesktopSidebar) return null;
     return (
-      <div style={{ display: "grid", gap: 16 }}>
+      <div style={{ display: "grid", gap: 16, position: "sticky", top: 86 }}>
         {renderAssistantPanel()}
         {renderCellPanel()}
         {renderRemindersPanel()}
@@ -2317,21 +2287,15 @@ export default function App() {
     );
   }
 
+
+
   function renderMobileTabContent() {
     if (mobileTab === "assistant") return renderAssistantPanel();
     if (mobileTab === "reminders") return renderRemindersPanel();
     if (mobileTab === "cell") return renderCellPanel();
-    return (
-      <div style={{ display: "grid", gap: 16 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14 }}>
-          <StatCard icon="🌿" label="Plants au total" value={totalPlants} subtitle="Dans le potager actif" />
-          <StatCard icon="💧" label="Arrosage estimé / jour" value={`${waterNeed} L`} subtitle="Estimation théorique" />
-          <StatCard icon="🧺" label="Récolte estimée" value={`${harvestEstimate} kg`} subtitle="Potentiel global approximatif" />
-        </div>
-        {renderPlanCard()}
-      </div>
-    );
+    return renderPlanCard();
   }
+
 
   return (
     <div
@@ -2365,9 +2329,9 @@ export default function App() {
           }}
         >
           <div style={{ flex: "1 1 340px" }}>
-            <h1 style={{ margin: 0, fontSize: isMobile ? 30 : 42 }}>🌱 Assistant Potager 2.1 guidé</h1>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 30 : 42 }}>🌱 Assistant Potager 2.1.2 focus plan</h1>
             <div style={{ marginTop: 6, color: "#4b5563", lineHeight: 1.4 }}>
-              Gabarits prêts à l’emploi • diagnostic assisté • placement conseillé • rappels intelligents
+              Plan prioritaire • panneaux secondaires repliables • cases simplifiées
             </div>
           </div>
 
@@ -2414,10 +2378,10 @@ export default function App() {
               <button onClick={createNewPotager} style={primaryBtn("#2563eb")}>Nouveau potager</button>
               <button onClick={duplicateActivePotager} style={primaryBtn("#0f766e")}>Dupliquer</button>
               <button onClick={importClick} style={primaryBtn("#7c3aed")}>Importer</button>
-              <button onClick={exportActivePotager} style={primaryBtn("#9333ea")}>Exporter ce potager</button>
-              <button onClick={exportAllPotagers} style={primaryBtn("#6d28d9")}>Exporter tout</button>
+              <button onClick={exportActivePotager} style={primaryBtn("#9333ea")}>Exporter</button>
+              <button onClick={exportAllPotagers} style={primaryBtn("#6d28d9")}>Tout exporter</button>
               <button onClick={shareActivePotager} style={primaryBtn("#ea580c")}>Partager</button>
-              <button onClick={resetCurrentPotager} style={primaryBtn("#111827")}>Réinitialiser</button>
+              <button onClick={resetCurrentPotager} style={primaryBtn("#111827")}>Reset</button>
             </div>
           )}
         </div>
@@ -2425,7 +2389,7 @@ export default function App() {
         {isMobile ? (
           renderMobileTabContent()
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(880px, 1fr) 460px", gap: 20, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: showDesktopSidebar ? "minmax(940px, 1fr) 420px" : "1fr", gap: 20, alignItems: "start" }}>
             {renderDesktopLeft()}
             {renderDesktopRight()}
           </div>
