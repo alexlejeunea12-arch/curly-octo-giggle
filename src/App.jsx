@@ -1,102 +1,44 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-// Repère 1/6 — constantes, design system, données et helpers
-const WORKING_STORAGE = "potager_v3_premium_working";
-const SAVED_STORAGE = "potager_v3_premium_saved";
+// Repère 1/6 — design system, helpers, données
+const WORKING_STORAGE = "potager_v33_working";
+const SAVED_STORAGE = "potager_v33_saved";
 
 const structures = {
-  empty: {
-    label: "Vide",
-    icon: "·",
-    color: "rgba(255,255,255,0.10)",
-    stroke: "rgba(255,255,255,0.16)",
-    priority: 0,
-  },
-  soil: {
-    label: "Terre / culture",
-    icon: "🪴",
-    color: "rgba(72, 52, 37, 0.75)",
-    stroke: "rgba(244, 192, 149, 0.45)",
-    priority: 2,
-  },
-  path: {
-    label: "Allée",
-    icon: "🪨",
-    color: "rgba(141, 127, 120, 0.68)",
-    stroke: "rgba(255,255,255,0.22)",
-    priority: 1,
-  },
-  grass: {
-    label: "Pelouse",
-    icon: "🌿",
-    color: "rgba(59, 130, 98, 0.72)",
-    stroke: "rgba(168, 255, 202, 0.32)",
-    priority: 1,
-  },
-  terrace: {
-    label: "Terrasse",
-    icon: "🟫",
-    color: "rgba(150, 95, 66, 0.74)",
-    stroke: "rgba(255,214,182,0.32)",
-    priority: 1,
-  },
-  fence: {
-    label: "Clôture bois",
-    icon: "🪵",
-    color: "rgba(133, 84, 53, 0.76)",
-    stroke: "rgba(255, 214, 166, 0.24)",
-    priority: 1,
-  },
-  wall: {
-    label: "Mur",
-    icon: "🧱",
-    color: "rgba(98, 107, 126, 0.82)",
-    stroke: "rgba(226,232,240,0.18)",
-    priority: 1,
-  },
-  greenhouse: {
-    label: "Serre",
-    icon: "🏕️",
-    color: "rgba(58, 170, 158, 0.72)",
-    stroke: "rgba(186,255,247,0.30)",
-    priority: 2,
-  },
-  shade: {
-    label: "Ombre",
-    icon: "🌳",
-    color: "rgba(68, 77, 94, 0.78)",
-    stroke: "rgba(255,255,255,0.16)",
-    priority: 1,
-  },
+  empty: { label: "Vide", icon: "·", tone: "rgba(255,255,255,0.10)", stroke: "rgba(255,255,255,0.12)" },
+  soil: { label: "Terre / culture", icon: "🪴", tone: "rgba(67,47,34,0.86)", stroke: "rgba(255,190,150,0.26)" },
+  path: { label: "Allée", icon: "🪨", tone: "rgba(96,88,86,0.82)", stroke: "rgba(255,255,255,0.13)" },
+  grass: { label: "Pelouse", icon: "🌿", tone: "rgba(40,82,56,0.86)", stroke: "rgba(143,255,191,0.18)" },
+  terrace: { label: "Terrasse", icon: "🟫", tone: "rgba(122,82,57,0.84)", stroke: "rgba(255,222,190,0.18)" },
+  fence: { label: "Clôture bois", icon: "🪵", tone: "rgba(108,68,46,0.84)", stroke: "rgba(255,214,166,0.18)" },
+  wall: { label: "Mur", icon: "🧱", tone: "rgba(74,82,96,0.86)", stroke: "rgba(226,232,240,0.15)" },
+  greenhouse: { label: "Serre", icon: "🏕️", tone: "rgba(39,111,109,0.86)", stroke: "rgba(186,255,247,0.18)" },
+  shade: { label: "Ombre", icon: "🌳", tone: "rgba(51,61,74,0.88)", stroke: "rgba(255,255,255,0.12)" },
 };
 
 const crops = {
-  none: { label: "Aucune culture", icon: "", color: "transparent", water: 0, sunNeed: 0, potMin: 0, potIdeal: [], vibe: "" },
-  tomate: { label: "Tomate", icon: "🍅", color: "#ff6b6b", water: 1.2, sunNeed: 3, potMin: 30, potIdeal: [35, 40, 50], vibe: "chaud" },
-  tomateCerise: { label: "Tomate cerise", icon: "🍅", color: "#ff9b73", water: 1.1, sunNeed: 3, potMin: 25, potIdeal: [30, 35, 40], vibe: "chaud" },
-  piment: { label: "Piment", icon: "🌶️", color: "#ff5a5f", water: 0.8, sunNeed: 3, potMin: 22, potIdeal: [25, 30, 35], vibe: "chaud" },
-  poivron: { label: "Poivron", icon: "🫑", color: "#ffb84d", water: 0.9, sunNeed: 3, potMin: 25, potIdeal: [30, 35, 40], vibe: "chaud" },
-  salade: { label: "Salade", icon: "🥬", color: "#90d26d", water: 0.6, sunNeed: 1, potMin: 18, potIdeal: [20, 25], vibe: "frais" },
-  basilic: { label: "Basilic", icon: "🌿", color: "#5ed88d", water: 0.5, sunNeed: 2, potMin: 16, potIdeal: [18, 20, 25], vibe: "chaud" },
-  persil: { label: "Persil", icon: "🌱", color: "#64c26a", water: 0.4, sunNeed: 1, potMin: 16, potIdeal: [18, 20, 25], vibe: "frais" },
-  fleurs: { label: "Fleurs utiles", icon: "🌼", color: "#ffd166", water: 0.3, sunNeed: 2, potMin: 18, potIdeal: [20, 25, 30], vibe: "mixte" },
+  none: { label: "Aucune culture", icon: "", accent: "transparent", water: 0, sunNeed: 0, potMin: 0, potIdeal: [], vibe: "" },
+  tomate: { label: "Tomate", icon: "🍅", accent: "#ff7a75", water: 1.2, sunNeed: 3, potMin: 30, potIdeal: [35, 40, 50], vibe: "chaud" },
+  tomateCerise: { label: "Tomate cerise", icon: "🍅", accent: "#ffb277", water: 1.1, sunNeed: 3, potMin: 25, potIdeal: [30, 35, 40], vibe: "chaud" },
+  piment: { label: "Piment", icon: "🌶️", accent: "#ff5f6d", water: 0.8, sunNeed: 3, potMin: 22, potIdeal: [25, 30, 35], vibe: "chaud" },
+  poivron: { label: "Poivron", icon: "🫑", accent: "#ffc857", water: 0.9, sunNeed: 3, potMin: 25, potIdeal: [30, 35, 40], vibe: "chaud" },
+  salade: { label: "Salade", icon: "🥬", accent: "#96dc82", water: 0.6, sunNeed: 1, potMin: 18, potIdeal: [20, 25], vibe: "frais" },
+  basilic: { label: "Basilic", icon: "🌿", accent: "#6ce8a0", water: 0.5, sunNeed: 2, potMin: 16, potIdeal: [18, 20, 25], vibe: "mixte" },
+  persil: { label: "Persil", icon: "🌱", accent: "#84d974", water: 0.4, sunNeed: 1, potMin: 16, potIdeal: [18, 20, 25], vibe: "frais" },
+  fleurs: { label: "Fleurs utiles", icon: "🌼", accent: "#ffd56d", water: 0.3, sunNeed: 2, potMin: 18, potIdeal: [20, 25, 30], vibe: "mixte" },
 };
 
 const structureOptions = ["soil", "grass", "path", "terrace", "fence", "wall", "greenhouse", "shade", "empty"];
 const cropOptions = ["none", "tomate", "tomateCerise", "piment", "poivron", "salade", "basilic", "persil", "fleurs"];
 const sunlightOptions = [0, 1, 2, 3];
-const orientations = [
-  { value: "south", label: "Terrasse en bas / lumière sud" },
-  { value: "north", label: "Terrasse en haut / lumière nord" },
-  { value: "east", label: "Terrasse à droite / lumière est" },
-  { value: "west", label: "Terrasse à gauche / lumière ouest" },
-];
-const planPresets = [
-  { label: "Petit 4×4", rows: 4, cols: 4 },
-  { label: "Carré 6×6", rows: 6, cols: 6 },
-  { label: "Longueur 4×10", rows: 4, cols: 10 },
-  { label: "Jardin 8×8", rows: 8, cols: 8 },
-  { label: "Grand 10×12", rows: 10, cols: 12 },
+const orientations = ["south", "north", "east", "west"];
+
+const presets = [
+  { label: "4×4", rows: 4, cols: 4 },
+  { label: "6×6", rows: 6, cols: 6 },
+  { label: "4×10", rows: 4, cols: 10 },
+  { label: "8×8", rows: 8, cols: 8 },
+  { label: "10×12", rows: 10, cols: 12 },
 ];
 
 function uid() {
@@ -129,7 +71,7 @@ function createCell(row, col) {
   };
 }
 
-function createGrid(rows = 6, cols = 8) {
+function createGrid(rows, cols) {
   const cells = [];
   for (let row = 0; row < rows; row += 1) {
     for (let col = 0; col < cols; col += 1) {
@@ -141,11 +83,22 @@ function createGrid(rows = 6, cols = 8) {
 
 function createDefaultState() {
   return {
+    planTitle: "Mon Potager",
     rows: 6,
     cols: 8,
     orientation: "south",
-    zoom: 48,
+    zoom: 50,
     aiEnabled: true,
+    cells: createGrid(6, 8),
+    selectedCellId: null,
+    clipboard: null,
+    brushMode: false,
+    activeTool: { structure: "soil", crop: "none", sun: 2, note: "" },
+    rightRailOpen: true,
+    fullscreenPlan: false,
+    contextMenu: null,
+    infoOpen: null,
+    liveWeather: { temp: 18, wind: 12, rain: 10, label: "Météo locale" },
     photoPreview: "",
     photoName: "",
     diagnosis: {
@@ -153,40 +106,14 @@ function createDefaultState() {
       shadedSide: "north",
       windSide: "west",
       confidence: "moyenne",
-      note: "Jardin encore en lecture assistée. Ajuste les côtés lumineux et ombragés si besoin.",
+      note: "Lecture assistée. Ajuste la lumière et le vent selon ton terrain.",
     },
-    cells: createGrid(6, 8),
-    selectedCellId: null,
-    clipboard: null,
-    brushMode: false,
-    activeTool: {
-      structure: "soil",
-      crop: "none",
-      sun: 2,
-      note: "",
-    },
-    quickPanelOpen: true,
-    rightRailOpen: true,
-    fullscreenPlan: false,
-    contextMenu: null,
-    liveWeather: {
-      temp: 18,
-      wind: 12,
-      label: "Météo locale simulée",
-    },
-    reminderSeed: [
-      { id: uid(), level: "today", text: "Vérifier l’humidité de la zone la plus chaude." },
-      { id: uid(), level: "watch", text: "Tour de plan rapide conseillé avant la tombée du jour." },
-    ],
     pots: [],
     pendingPotIds: [],
     activePotId: null,
-    potBuilder: {
-      count: 3,
-      diameter: 30,
-    },
+    potBuilder: { count: 3, diameter: 30 },
     savedAt: null,
-    planTitle: "Mon potager premium",
+    dirty: false,
   };
 }
 
@@ -197,11 +124,12 @@ function normalizeState(raw) {
   const sourceCells = Array.isArray(raw?.cells) ? raw.cells : createGrid(rows, cols);
   const map = new Map();
   sourceCells.forEach((cell) => {
-    const key = `${Number(cell.row)}-${Number(cell.col)}`;
-    map.set(key, {
+    const row = clamp(Number(cell.row || 0), 0, rows - 1);
+    const col = clamp(Number(cell.col || 0), 0, cols - 1);
+    map.set(`${row}-${col}`, {
       id: cell.id || uid(),
-      row: Number(cell.row),
-      col: Number(cell.col),
+      row,
+      col,
       structure: structures[cell.structure] ? cell.structure : "empty",
       crop: crops[cell.crop] ? cell.crop : "none",
       sun: clamp(Number(cell.sun ?? 2), 0, 3),
@@ -212,637 +140,521 @@ function normalizeState(raw) {
   const cells = [];
   for (let row = 0; row < rows; row += 1) {
     for (let col = 0; col < cols; col += 1) {
-      const key = `${row}-${col}`;
-      cells.push(
-        map.get(key) || {
-          id: uid(),
-          row,
-          col,
-          structure: "empty",
-          crop: "none",
-          sun: 2,
-          note: "",
-          potIds: [],
-        }
-      );
+      cells.push(map.get(`${row}-${col}`) || createCell(row, col));
     }
   }
-
+  const pots = Array.isArray(raw?.pots)
+    ? raw.pots.map((pot) => ({
+        id: pot.id || uid(),
+        label: pot.label || "Pot",
+        diameter: clamp(Number(pot.diameter || 30), 10, 100),
+        crop: crops[pot.crop] ? pot.crop : "none",
+        suggestedCrop: crops[pot.suggestedCrop] ? pot.suggestedCrop : "none",
+        suggestedCellId: pot.suggestedCellId || null,
+        placedCellId: pot.placedCellId || null,
+      }))
+    : [];
   return {
     ...fallback,
     ...raw,
     rows,
     cols,
-    orientation: orientations.some((item) => item.value === raw?.orientation)
-      ? raw.orientation
-      : fallback.orientation,
-    zoom: clamp(Number(raw?.zoom || fallback.zoom), 28, 76),
-    aiEnabled: raw?.aiEnabled ?? fallback.aiEnabled,
-    photoPreview: raw?.photoPreview || "",
-    photoName: raw?.photoName || "",
-    diagnosis: {
-      ...fallback.diagnosis,
-      ...(raw?.diagnosis || {}),
-    },
     cells,
-    selectedCellId: cells.some((cell) => cell.id === raw?.selectedCellId)
-      ? raw.selectedCellId
-      : null,
-    clipboard: raw?.clipboard
-      ? {
-          structure: structures[raw.clipboard.structure] ? raw.clipboard.structure : "soil",
-          crop: crops[raw.clipboard.crop] ? raw.clipboard.crop : "none",
-          sun: clamp(Number(raw.clipboard.sun ?? 2), 0, 3),
-          note: raw.clipboard.note || "",
-        }
-      : null,
-    brushMode: Boolean(raw?.brushMode),
+    pots,
+    orientation: ["south", "north", "east", "west"].includes(raw?.orientation) ? raw.orientation : "south",
+    zoom: clamp(Number(raw?.zoom || 50), 32, 72),
     activeTool: {
-      structure: structures[raw?.activeTool?.structure] ? raw.activeTool.structure : fallback.activeTool.structure,
-      crop: crops[raw?.activeTool?.crop] ? raw.activeTool.crop : fallback.activeTool.crop,
-      sun: clamp(Number(raw?.activeTool?.sun ?? fallback.activeTool.sun), 0, 3),
+      structure: structures[raw?.activeTool?.structure] ? raw.activeTool.structure : "soil",
+      crop: crops[raw?.activeTool?.crop] ? raw.activeTool.crop : "none",
+      sun: clamp(Number(raw?.activeTool?.sun ?? 2), 0, 3),
       note: raw?.activeTool?.note || "",
     },
-    quickPanelOpen: raw?.quickPanelOpen ?? fallback.quickPanelOpen,
-    rightRailOpen: raw?.rightRailOpen ?? fallback.rightRailOpen,
-    fullscreenPlan: raw?.fullscreenPlan ?? fallback.fullscreenPlan,
+    infoOpen: null,
     contextMenu: null,
-    liveWeather: { ...fallback.liveWeather, ...(raw?.liveWeather || {}) },
-    reminderSeed: Array.isArray(raw?.reminderSeed) ? raw.reminderSeed : fallback.reminderSeed,
-    pots: Array.isArray(raw?.pots)
-      ? raw.pots.map((pot) => ({
-          id: pot.id || uid(),
-          diameter: clamp(Number(pot.diameter || 20), 10, 120),
-          cropSuggestion: crops[pot.cropSuggestion] ? pot.cropSuggestion : suggestCropForDiameter(pot.diameter || 20),
-          placedCellId: pot.placedCellId || null,
-          note: pot.note || "",
-          label: pot.label || `Pot ${pot.diameter || 20} cm`,
-        }))
-      : [],
-    pendingPotIds: Array.isArray(raw?.pendingPotIds) ? raw.pendingPotIds : [],
-    activePotId: raw?.activePotId || null,
-    potBuilder: {
-      count: clamp(Number(raw?.potBuilder?.count || fallback.potBuilder.count), 1, 20),
-      diameter: clamp(Number(raw?.potBuilder?.diameter || fallback.potBuilder.diameter), 12, 100),
-    },
     savedAt: raw?.savedAt || null,
-    planTitle: raw?.planTitle || fallback.planTitle,
+    dirty: !!raw?.dirty,
+    pendingPotIds: Array.isArray(raw?.pendingPotIds) ? raw.pendingPotIds : [],
+    diagnosis: {
+      brightSide: ["south", "north", "east", "west"].includes(raw?.diagnosis?.brightSide) ? raw.diagnosis.brightSide : fallback.diagnosis.brightSide,
+      shadedSide: ["south", "north", "east", "west"].includes(raw?.diagnosis?.shadedSide) ? raw.diagnosis.shadedSide : fallback.diagnosis.shadedSide,
+      windSide: ["south", "north", "east", "west"].includes(raw?.diagnosis?.windSide) ? raw.diagnosis.windSide : fallback.diagnosis.windSide,
+      confidence: raw?.diagnosis?.confidence || fallback.diagnosis.confidence,
+      note: raw?.diagnosis?.note || fallback.diagnosis.note,
+    },
   };
 }
 
-function serializeState(state) {
-  return JSON.stringify({
-    rows: state.rows,
-    cols: state.cols,
-    orientation: state.orientation,
-    zoom: state.zoom,
-    aiEnabled: state.aiEnabled,
-    photoPreview: state.photoPreview,
-    photoName: state.photoName,
-    diagnosis: state.diagnosis,
-    cells: state.cells,
-    selectedCellId: state.selectedCellId,
-    clipboard: state.clipboard,
-    brushMode: state.brushMode,
-    activeTool: state.activeTool,
-    quickPanelOpen: state.quickPanelOpen,
-    rightRailOpen: state.rightRailOpen,
-    fullscreenPlan: state.fullscreenPlan,
-    liveWeather: state.liveWeather,
-    reminderSeed: state.reminderSeed,
-    pots: state.pots,
-    pendingPotIds: state.pendingPotIds,
-    activePotId: state.activePotId,
-    potBuilder: state.potBuilder,
-    savedAt: state.savedAt,
-    planTitle: state.planTitle,
-  });
+function structureTexture(structure) {
+  if (structure === "fence") return "repeating-linear-gradient(90deg, rgba(255,214,166,0.12) 0 3px, transparent 3px 7px)";
+  if (structure === "wall") return "repeating-linear-gradient(0deg, rgba(255,255,255,0.08) 0 2px, transparent 2px 10px)";
+  if (structure === "terrace") return "repeating-linear-gradient(90deg, rgba(255,214,182,0.08) 0 4px, transparent 4px 10px)";
+  if (structure === "path") return "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.05), transparent 55%)";
+  if (structure === "grass") return "radial-gradient(circle at 30% 30%, rgba(163,255,191,0.07), transparent 60%)";
+  if (structure === "soil") return "radial-gradient(circle at 30% 30%, rgba(255,195,149,0.07), transparent 60%)";
+  if (structure === "greenhouse") return "linear-gradient(135deg, rgba(255,255,255,0.08), transparent 60%)";
+  return "none";
 }
 
-function buildGradientBackground() {
-  return {
-    background: `
-      radial-gradient(circle at 14% 18%, rgba(255, 182, 193, 0.22), transparent 20%),
-      radial-gradient(circle at 84% 18%, rgba(104, 118, 255, 0.28), transparent 24%),
-      radial-gradient(circle at 56% 74%, rgba(255, 208, 145, 0.15), transparent 25%),
-      linear-gradient(135deg, #0a1120 0%, #182440 24%, #35245f 48%, #7b376e 72%, #f09a88 100%)
-    `,
-  };
+function orientationBias(cell, rows, cols, brightSide, shadedSide) {
+  const north = 1 - cell.row / Math.max(1, rows - 1);
+  const south = cell.row / Math.max(1, rows - 1);
+  const west = 1 - cell.col / Math.max(1, cols - 1);
+  const east = cell.col / Math.max(1, cols - 1);
+  const bySide = { north, south, east, west };
+  return (bySide[brightSide] || 0) - (bySide[shadedSide] || 0);
 }
 
-function glassCardStyle(heavy = false) {
-  return {
-    background: heavy ? "rgba(10, 14, 28, 0.72)" : "rgba(14, 18, 34, 0.52)",
-    backdropFilter: "blur(20px)",
-    WebkitBackdropFilter: "blur(20px)",
-    border: "1px solid rgba(255,255,255,0.14)",
-    borderRadius: 24,
-    boxShadow: "0 18px 70px rgba(0,0,0,0.24)",
-  };
-}
-
-function smallChip(active) {
-  return {
-    padding: "8px 10px",
-    borderRadius: 999,
-    border: active ? "1px solid rgba(255,255,255,0.28)" : "1px solid rgba(255,255,255,0.10)",
-    background: active ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.08)",
-    color: "white",
-    cursor: "pointer",
-    fontWeight: 700,
-    fontSize: 12,
-    whiteSpace: "nowrap",
-  };
-}
-
-function strongButton(color = "#7c4dff") {
-  return {
-    background: `linear-gradient(135deg, ${color}, rgba(255,255,255,0.10))`,
-    color: "white",
-    border: "1px solid rgba(255,255,255,0.14)",
-    borderRadius: 14,
-    padding: "11px 14px",
-    fontWeight: 800,
-    cursor: "pointer",
-    boxShadow: "0 8px 30px rgba(0,0,0,0.16)",
-  };
-}
-
-function softButton() {
-  return {
-    background: "rgba(255,255,255,0.08)",
-    color: "white",
-    border: "1px solid rgba(255,255,255,0.12)",
-    borderRadius: 14,
-    padding: "10px 12px",
-    fontWeight: 700,
-    cursor: "pointer",
-  };
-}
-
-function fieldStyle() {
-  return {
-    width: "100%",
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(7, 11, 23, 0.68)",
-    color: "white",
-    padding: "11px 12px",
-    outline: "none",
-    boxSizing: "border-box",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
-  };
-}
-
-function getOrientationScore(row, col, rows, cols, brightSide) {
-  if (brightSide === "south") return row / Math.max(rows - 1, 1);
-  if (brightSide === "north") return 1 - row / Math.max(rows - 1, 1);
-  if (brightSide === "east") return col / Math.max(cols - 1, 1);
-  return 1 - col / Math.max(cols - 1, 1);
-}
-
-function effectiveSun(cell, state) {
-  const cellRow = cell.row;
-  const cellCol = cell.col;
-  const orient = getOrientationScore(
-    cellRow,
-    cellCol,
-    state.rows,
-    state.cols,
-    state.diagnosis?.brightSide || state.orientation
-  );
-  const shadePenalty = getOrientationScore(
-    cellRow,
-    cellCol,
-    state.rows,
-    state.cols,
-    state.diagnosis?.shadedSide || "north"
-  );
-  let score = Number(cell.sun || 0) + orient * 1.3 - shadePenalty * 0.8;
-  if (cell.structure === "shade") score -= 1.2;
-  if (cell.structure === "greenhouse") score += 0.7;
-  if (cell.structure === "wall") score -= 0.8;
-  return clamp(Math.round(score), 0, 3);
-}
-
-function scoreCellForCrop(cell, state, cropKey) {
-  const crop = crops[cropKey] || crops.none;
-  const sun = effectiveSun(cell, state);
-  if (["wall", "fence"].includes(cell.structure)) return -999;
-  if (cell.structure === "terrace" && cropKey !== "none") return -70;
-  let score = 0;
-  score += 30 - Math.abs(crop.sunNeed - sun) * 10;
-  if (cell.structure === "soil") score += 18;
-  if (cell.structure === "greenhouse" && crop.vibe === "chaud") score += 22;
-  if (cell.structure === "shade" && crop.vibe === "frais") score += 10;
-  if (cell.structure === "grass") score -= 3;
-  if (state.aiEnabled) {
-    if ((state.liveWeather.temp || 18) < 10 && crop.vibe === "chaud") score -= 8;
-    if ((state.liveWeather.temp || 18) > 26 && crop.vibe === "frais") score -= 5;
+function describeCellAdvice(cell, state) {
+  const crop = crops[cell.crop];
+  const brightBias = orientationBias(cell, state.rows, state.cols, state.diagnosis.brightSide, state.diagnosis.shadedSide);
+  const warm = brightBias > 0.15 || cell.sun >= 3;
+  if (cell.structure === "wall") return "Mur utile comme repère ou appui thermique, pas de pleine terre directe.";
+  if (cell.structure === "fence") return "Bonne structure de bordure. Idéal pour tracer les limites et organiser le plan.";
+  if (cell.structure === "terrace") return "Zone pratique pour pots et circulation, moins adaptée à la pleine terre.";
+  if (cell.structure === "greenhouse") return "Très bon point chaud. Parfait pour semis, basilic, piments et jeunes plants.";
+  if (cell.structure === "shade") return "Zone d’ombre. Privilégier salade, persil ou observation plutôt que cultures chaudes.";
+  if (cell.crop !== "none") {
+    if (crop.sunNeed >= 3 && warm) return `${crop.label} bien placé ici : zone plutôt chaude et lumineuse.`;
+    if (crop.sunNeed >= 3 && !warm) return `${crop.label} risque d’être un peu juste ici. Chercher une zone plus chaude ou plus lumineuse.`;
+    if (crop.sunNeed <= 1 && cell.sun <= 2) return `${crop.label} cohérent ici : exposition plus douce et plus fraîche.`;
+    return `${crop.label} possible ici. À surveiller selon la météo et l’évolution du terrain.`;
   }
-  if (cell.crop !== "none" && cell.crop !== cropKey) score -= 18;
-  if (cell.potIds?.length) score += 2;
-  return score;
+  if (cell.structure === "soil" && warm) return "Bonne zone chaude pour tomates, piments ou basilic.";
+  if (cell.structure === "soil" && !warm) return "Bonne zone plus douce pour salades, persil ou fleurs utiles.";
+  if (cell.structure === "grass") return "Pelouse / décor. À garder visuel ou à convertir plus tard en zone utile.";
+  if (cell.structure === "path") return "Allée utile pour circulation et accès aux zones cultivées.";
+  return "Case neutre. Structure-la d’abord, puis laisse l’IA suggérer une culture.";
 }
 
-function scoreCellForPot(cell, state, pot) {
-  if (["wall", "fence"].includes(cell.structure)) return -999;
-  let score = 0;
-  if (["terrace", "path"].includes(cell.structure)) score += 18;
-  if (["grass", "empty"].includes(cell.structure)) score += 6;
-  if (cell.structure === "soil") score += 8;
-  if (cell.structure === "greenhouse" && crops[pot.cropSuggestion]?.vibe === "chaud") score += 14;
-  score += scoreCellForCrop(cell, state, pot.cropSuggestion) * 0.6;
-  score -= (cell.potIds?.length || 0) * 8;
-  return score;
+function buildFireflies(count = 22) {
+  return Array.from({ length: count }).map((_, index) => ({
+    id: index,
+    left: `${Math.random() * 100}%`,
+    top: `${Math.random() * 100}%`,
+    size: 2 + Math.random() * 5,
+    duration: 8 + Math.random() * 16,
+    delay: Math.random() * 8,
+    blur: Math.random() > 0.5,
+    opacity: 0.3 + Math.random() * 0.6,
+  }));
 }
 
-function suggestCropForDiameter(diameter) {
-  const size = Number(diameter || 20);
-  if (size >= 35) return "tomate";
-  if (size >= 30) return "poivron";
-  if (size >= 24) return "piment";
-  if (size >= 20) return "basilic";
-  return "salade";
+function cx(...parts) {
+  return parts.filter(Boolean).join(" ");
 }
 
-function getBestCellsForCrop(cells, state, cropKey, count = 6) {
-  return [...cells]
-    .map((cell) => ({ cell, score: scoreCellForCrop(cell, state, cropKey) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, count)
-    .filter((item) => item.score > -50);
+function getCellById(cells, id) {
+  return cells.find((cell) => cell.id === id) || null;
 }
 
-function getBestCellsForPot(cells, state, pot, count = 6) {
-  return [...cells]
-    .map((cell) => ({ cell, score: scoreCellForPot(cell, state, pot) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, count)
-    .filter((item) => item.score > -50);
+function applyPreset(state, rows, cols) {
+  return {
+    ...state,
+    rows,
+    cols,
+    cells: createGrid(rows, cols),
+    selectedCellId: null,
+    activePotId: null,
+    pendingPotIds: [],
+    dirty: true,
+  };
 }
 
-function buildCellTooltip(cell, state, potsById) {
-  const structure = structures[cell.structure]?.label || "Structure";
-  const crop = crops[cell.crop]?.label || "Culture";
-  const sun = effectiveSun(cell, state);
-  const pots = (cell.potIds || []).map((id) => potsById[id]).filter(Boolean);
-  const potText = pots.length ? ` • ${pots.length} pot${pots.length > 1 ? "s" : ""}` : "";
-  return `${structure}${crop !== "Aucune culture" ? ` • ${crop}` : ""} • soleil ${sun}/3${potText}`;
+function nearestSuggestedCell(state, pot) {
+  const candidates = state.cells.filter((cell) => cell.structure === "soil" && !cell.potIds.length);
+  if (!candidates.length) return null;
+  return candidates
+    .map((cell) => {
+      const bright = orientationBias(cell, state.rows, state.cols, state.diagnosis.brightSide, state.diagnosis.shadedSide);
+      const cropKey = pot.crop !== "none" ? pot.crop : pot.suggestedCrop;
+      const crop = crops[cropKey] || crops.none;
+      let score = bright + cell.sun * 0.2;
+      if (crop.sunNeed >= 3) score += bright * 1.2;
+      if (crop.sunNeed <= 1) score -= bright * 0.6;
+      if (cell.structure === "greenhouse") score += 0.5;
+      return { cell, score };
+    })
+    .sort((a, b) => b.score - a.score)[0]?.cell || null;
 }
 
-function deepClone(value) {
-  return JSON.parse(JSON.stringify(value));
+function getStatusForCell(cell, state) {
+  const crop = crops[cell.crop];
+  const bright = orientationBias(cell, state.rows, state.cols, state.diagnosis.brightSide, state.diagnosis.shadedSide);
+  if (cell.potIds.length > 0 && state.pendingPotIds.some((id) => cell.potIds.includes(id))) return "today";
+  if (crop.sunNeed >= 3 && cell.structure === "soil" && bright < -0.12) return "danger";
+  if (state.liveWeather.wind >= 35 && ["greenhouse", "soil"].includes(cell.structure)) return "watch";
+  if (cell.crop !== "none") return "good";
+  return "calm";
 }
 
-function Step({ index, title, active, done }) {
+function statusAccent(status) {
+  if (status === "danger") return "rgba(255, 107, 107, 0.95)";
+  if (status === "today") return "rgba(255, 193, 92, 0.95)";
+  if (status === "watch") return "rgba(164, 128, 255, 0.95)";
+  if (status === "good") return "rgba(80, 226, 160, 0.95)";
+  return "rgba(255,255,255,0.22)";
+}
+
+function InfoDot({ id, openId, setOpenId, title, text }) {
+  const open = openId === id;
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        opacity: active || done ? 1 : 0.55,
-      }}
-    >
-      <div
+    <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+      <button
+        onClick={() => setOpenId(open ? null : id)}
         style={{
-          width: 24,
-          height: 24,
+          width: 22,
+          height: 22,
           borderRadius: 999,
-          display: "grid",
-          placeItems: "center",
-          background: active ? "linear-gradient(135deg,#ffd166,#ef476f)" : done ? "rgba(89, 203, 145, 0.9)" : "rgba(255,255,255,0.12)",
-          color: active || done ? "#111827" : "white",
-          fontWeight: 900,
+          border: "1px solid rgba(255,255,255,0.2)",
+          background: "rgba(255,255,255,0.08)",
+          color: "rgba(255,255,255,0.92)",
           fontSize: 12,
+          fontWeight: 700,
+          cursor: "pointer",
+          boxShadow: "0 8px 20px rgba(0,0,0,0.18)",
         }}
       >
-        {index}
-      </div>
-      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.86)", fontWeight: 700 }}>{title}</div>
+        i
+      </button>
+      {open ? (
+        <div
+          style={{
+            position: "absolute",
+            top: 30,
+            right: 0,
+            width: 280,
+            zIndex: 50,
+            padding: 14,
+            borderRadius: 18,
+            border: "1px solid rgba(255,255,255,0.16)",
+            background: "rgba(10, 14, 30, 0.92)",
+            color: "rgba(238,242,255,0.95)",
+            boxShadow: "0 18px 40px rgba(0,0,0,0.35)",
+            backdropFilter: "blur(14px)",
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>{title}</div>
+          <div style={{ fontSize: 13, lineHeight: 1.55, color: "rgba(226,232,240,0.88)" }}>{text}</div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function Pill({ children, color = "rgba(255,255,255,0.12)" }) {
+function SectionCard({ title, right, children, subtle = false }) {
   return (
     <div
       style={{
-        padding: "6px 10px",
-        borderRadius: 999,
-        fontSize: 12,
+        borderRadius: 28,
+        border: subtle ? "1px solid rgba(255,255,255,0.12)" : "1px solid rgba(255,255,255,0.16)",
+        background: subtle ? "rgba(14, 18, 36, 0.50)" : "rgba(12, 16, 34, 0.62)",
+        backdropFilter: "blur(16px)",
+        boxShadow: subtle ? "0 14px 34px rgba(3,7,18,0.18)" : "0 18px 40px rgba(3,7,18,0.28)",
+        overflow: "hidden",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "16px 18px 10px" }}>
+        <div style={{ fontWeight: 700, fontSize: 16, letterSpacing: "0.03em", color: "rgba(248,250,252,0.96)" }}>{title}</div>
+        {right}
+      </div>
+      <div style={{ padding: "0 18px 18px" }}>{children}</div>
+    </div>
+  );
+}
+
+function PillButton({ active, onClick, children, tone = "rgba(255,255,255,0.08)" }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "10px 14px",
+        borderRadius: 16,
+        border: active ? "1px solid rgba(255,228,193,0.34)" : "1px solid rgba(255,255,255,0.10)",
+        background: active ? "linear-gradient(135deg, rgba(255,174,111,0.18), rgba(120,144,255,0.12))" : tone,
+        color: "rgba(248,250,252,0.95)",
         fontWeight: 700,
-        background: color,
-        color: "white",
-        border: "1px solid rgba(255,255,255,0.10)",
+        cursor: "pointer",
+        transition: "all 180ms ease",
       }}
     >
       {children}
-    </div>
+    </button>
   );
 }
 
-function RightContextMenu({ menu, onClose, onChoose }) {
-  if (!menu) return null;
+function PotBadge({ pot, active }) {
   return (
     <div
       style={{
-        position: "fixed",
-        left: menu.x,
-        top: menu.y,
-        zIndex: 80,
-        width: 220,
-        padding: 10,
-        ...glassCardStyle(true),
+        minWidth: 56,
+        padding: "8px 10px",
+        borderRadius: 16,
+        border: active ? "1px solid rgba(255,211,119,0.35)" : "1px solid rgba(255,255,255,0.10)",
+        background: active ? "rgba(255,211,119,0.12)" : "rgba(255,255,255,0.06)",
+        color: "rgba(248,250,252,0.95)",
+        display: "grid",
+        gap: 3,
       }}
-      onMouseLeave={onClose}
     >
-      <div style={{ display: "grid", gap: 6 }}>
-        {menu.items.map((item) => (
-          <button
-            key={item.key}
-            onClick={() => onChoose(item.key)}
-            style={{
-              ...softButton(),
-              textAlign: "left",
-            }}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+      <div style={{ fontSize: 12, opacity: 0.8 }}>{pot.label}</div>
+      <div style={{ fontWeight: 700 }}>{pot.diameter} cm</div>
+      <div style={{ fontSize: 12, color: "rgba(191,219,254,0.88)" }}>{pot.crop !== "none" ? crops[pot.crop].label : crops[pot.suggestedCrop].label}</div>
     </div>
   );
 }
 
-// Repère 2/6 — composant principal, persistance, interactions globales
+// Repère 2/6 — composant principal, persistance, météo, animation
 export default function App() {
-  const [state, setState] = useState(() => normalizeState(safeRead(WORKING_STORAGE, createDefaultState())));
-  const [savedSnapshot, setSavedSnapshot] = useState(() => safeRead(SAVED_STORAGE, serializeState(normalizeState(createDefaultState()))));
-  const [mobileTab, setMobileTab] = useState("plan");
+  const initial = normalizeState(safeRead(WORKING_STORAGE, createDefaultState()));
+  const [state, setState] = useState(initial);
   const [screenWidth, setScreenWidth] = useState(() => window.innerWidth);
-  const [planVersions, setPlanVersions] = useState(() => safeRead("potager_v3_saved_versions", []));
-  const fileInputRef = useRef(null);
+  const [fireflies] = useState(() => buildFireflies(28));
+  const [hoverCellId, setHoverCellId] = useState(null);
+  const [painting, setPainting] = useState(false);
+  const photoInputRef = useRef(null);
 
   useEffect(() => {
-    localStorage.setItem(WORKING_STORAGE, serializeState(state));
+    localStorage.setItem(WORKING_STORAGE, JSON.stringify(state));
   }, [state]);
 
   useEffect(() => {
-    localStorage.setItem(SAVED_STORAGE, savedSnapshot);
-  }, [savedSnapshot]);
+    function onResize() {
+      setScreenWidth(window.innerWidth);
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem("potager_v3_saved_versions", JSON.stringify(planVersions));
-  }, [planVersions]);
+    function handleUp() {
+      setPainting(false);
+    }
+    window.addEventListener("mouseup", handleUp);
+    return () => window.removeEventListener("mouseup", handleUp);
+  }, []);
 
   useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth);
-    const beforeUnload = (event) => {
-      if (serializeState(state) !== savedSnapshot) {
-        event.preventDefault();
-        event.returnValue = "";
-      }
-    };
-    const closeContext = () => setState((prev) => ({ ...prev, contextMenu: null }));
+    fetch("https://api.open-meteo.com/v1/forecast?latitude=48.616&longitude=2.258&current_weather=true")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data?.current_weather) return;
+        setState((prev) => ({
+          ...prev,
+          liveWeather: {
+            temp: Math.round(data.current_weather.temperature),
+            wind: Math.round(data.current_weather.windspeed),
+            rain: prev.liveWeather.rain,
+            label: "Saint-Germain-lès-Arpajon",
+          },
+        }));
+      })
+      .catch(() => {});
+  }, []);
 
-    window.addEventListener("resize", handleResize);
+  useEffect(() => {
+    function beforeUnload(event) {
+      if (!state.dirty) return undefined;
+      event.preventDefault();
+      event.returnValue = "";
+      return "";
+    }
     window.addEventListener("beforeunload", beforeUnload);
-    window.addEventListener("click", closeContext);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("beforeunload", beforeUnload);
-      window.removeEventListener("click", closeContext);
-    };
-  }, [state, savedSnapshot]);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [state.dirty]);
 
-  const isMobile = screenWidth <= 980;
-  const isCompact = screenWidth <= 700;
-  const potsById = useMemo(() => Object.fromEntries(state.pots.map((pot) => [pot.id, pot])), [state.pots]);
-  const selectedCell = useMemo(
-    () => state.cells.find((cell) => cell.id === state.selectedCellId) || null,
-    [state.cells, state.selectedCellId]
-  );
-  const activePot = useMemo(
-    () => state.pots.find((pot) => pot.id === state.activePotId) || null,
-    [state.pots, state.activePotId]
-  );
-  const unsaved = serializeState(state) !== savedSnapshot;
+  const isMobile = screenWidth <= 920;
+  const selectedCell = useMemo(() => getCellById(state.cells, state.selectedCellId), [state.cells, state.selectedCellId]);
+  const activePot = useMemo(() => state.pots.find((pot) => pot.id === state.activePotId) || null, [state.pots, state.activePotId]);
 
-  function setField(patch) {
-    setState((prev) => ({ ...prev, ...patch }));
+  const planMetrics = useMemo(() => {
+    const cropsCount = state.cells.filter((cell) => cell.crop !== "none").length;
+    const structureCount = state.cells.filter((cell) => cell.structure !== "empty").length;
+    const warmCount = state.cells.filter((cell) => cell.sun >= 3).length;
+    return { cropsCount, structureCount, warmCount };
+  }, [state.cells]);
+
+  // Repère 3/6 — lecture IA, conseil principal, actions plan
+  const mainAdvice = useMemo(() => {
+    if (selectedCell) return describeCellAdvice(selectedCell, state);
+    if (state.pendingPotIds.length) return "Des pots attendent encore une position. Clique une zone de culture pour les placer.";
+    if (state.aiEnabled) return "Commence par dessiner la structure du jardin, puis laisse l’IA orienter les cultures et les pots.";
+    return "Active l’IA pour obtenir des suggestions plus précises selon lumière, météo et plan.";
+  }, [selectedCell, state]);
+
+  const todayLine = useMemo(() => {
+    if (state.pendingPotIds.length) return `${state.pendingPotIds.length} pot(s) à placer`;
+    if (selectedCell?.crop !== "none") return `Observer ${crops[selectedCell.crop].label.toLowerCase()} sur la case active`;
+    if (state.liveWeather.wind >= 30) return "Vent fort : attention aux jeunes plants";
+    return "Plan prêt pour conception et placement";
+  }, [state.pendingPotIds.length, selectedCell, state.liveWeather.wind]);
+
+  const suggestedPotText = useMemo(() => {
+    const diameter = state.potBuilder.diameter;
+    const suggestion = cropOptions
+      .filter((key) => key !== "none")
+      .map((key) => ({ key, score: crops[key].potIdeal.includes(diameter) ? 2 : crops[key].potMin <= diameter ? 1 : -1 }))
+      .sort((a, b) => b.score - a.score)[0];
+    return suggestion && suggestion.score >= 0 ? crops[suggestion.key].label : "Culture légère / fleurs";
+  }, [state.potBuilder.diameter]);
+
+  function patch(next) {
+    setState((prev) => ({ ...prev, ...next, dirty: true }));
   }
 
   function patchCells(updater) {
-    setState((prev) => ({ ...prev, cells: updater(prev.cells) }));
+    setState((prev) => ({ ...prev, cells: updater(prev.cells), dirty: true }));
   }
 
-  function updateCell(cellId, updater) {
-    patchCells((cells) =>
-      cells.map((cell) => {
-        if (cell.id !== cellId) return cell;
-        const next = updater(cell);
-        return {
-          ...cell,
-          ...next,
-          structure: structures[next.structure ?? cell.structure] ? next.structure ?? cell.structure : cell.structure,
-          crop: crops[next.crop ?? cell.crop] ? next.crop ?? cell.crop : cell.crop,
-          sun: clamp(Number(next.sun ?? cell.sun), 0, 3),
-          note: next.note ?? cell.note,
-          potIds: Array.isArray(next.potIds ?? cell.potIds) ? next.potIds ?? cell.potIds : cell.potIds,
-        };
-      })
-    );
+  function selectCell(cellId) {
+    setState((prev) => ({ ...prev, selectedCellId: cellId, activePotId: null, contextMenu: null }));
   }
 
-  function savePlan() {
-    const serialized = serializeState({ ...state, savedAt: new Date().toISOString() });
-    setSavedSnapshot(serialized);
-    setState((prev) => ({ ...prev, savedAt: new Date().toISOString() }));
-    const nextVersion = {
-      id: uid(),
-      title: state.planTitle,
-      savedAt: new Date().toLocaleString(),
-      payload: serialized,
-    };
-    setPlanVersions((prev) => [nextVersion, ...prev].slice(0, 8));
+  function updateSelectedCell(changes) {
+    if (!state.selectedCellId) return;
+    patchCells((cells) => cells.map((cell) => (cell.id === state.selectedCellId ? { ...cell, ...changes } : cell)));
   }
 
-  function restorePlan() {
-    setState(normalizeState(JSON.parse(savedSnapshot)));
-  }
-
-  function applyPreset(rows, cols) {
-    const nextCells = createGrid(rows, cols);
-    setState((prev) => ({
-      ...prev,
-      rows,
-      cols,
-      cells: nextCells,
-      selectedCellId: null,
-      activePotId: null,
-      pendingPotIds: [],
-    }));
-  }
-
-  function growGrid(addRows, addCols) {
-    const rows = clamp(state.rows + addRows, 2, 18);
-    const cols = clamp(state.cols + addCols, 2, 18);
-    const oldMap = new Map(state.cells.map((cell) => [`${cell.row}-${cell.col}`, cell]));
-    const nextCells = [];
-    for (let row = 0; row < rows; row += 1) {
-      for (let col = 0; col < cols; col += 1) {
-        const found = oldMap.get(`${row}-${col}`);
-        nextCells.push(
-          found || {
-            id: uid(),
-            row,
-            col,
-            structure: "empty",
-            crop: "none",
-            sun: 2,
-            note: "",
-            potIds: [],
-          }
-        );
-      }
-    }
-    setState((prev) => ({ ...prev, rows, cols, cells: nextCells }));
-  }
-
-  function buildClipboardFromTool() {
-    setState((prev) => ({
-      ...prev,
-      clipboard: deepClone(prev.activeTool),
-      brushMode: true,
-      activePotId: null,
-      pendingPotIds: [],
-    }));
-  }
-
-  function copySelectedCell() {
-    if (!selectedCell) return;
+  function copyCellToClipboard(cell) {
+    if (!cell) return;
     setState((prev) => ({
       ...prev,
       clipboard: {
-        structure: selectedCell.structure,
-        crop: selectedCell.crop,
-        sun: selectedCell.sun,
-        note: selectedCell.note,
+        structure: cell.structure,
+        crop: cell.crop,
+        sun: cell.sun,
+        note: cell.note,
+      },
+      activeTool: {
+        structure: cell.structure,
+        crop: cell.crop,
+        sun: cell.sun,
+        note: cell.note,
       },
       brushMode: true,
-      activePotId: null,
+      dirty: prev.dirty,
     }));
   }
 
-  function clearCell(cellId) {
-    const cell = state.cells.find((item) => item.id === cellId);
-    if (!cell) return;
-    const detachedPotIds = cell.potIds || [];
-    setState((prev) => ({
-      ...prev,
-      pots: prev.pots.map((pot) =>
-        detachedPotIds.includes(pot.id) ? { ...pot, placedCellId: null } : pot
-      ),
-      pendingPotIds: [...new Set([...prev.pendingPotIds, ...detachedPotIds])],
-      cells: prev.cells.map((item) =>
-        item.id === cellId
-          ? { ...item, structure: "empty", crop: "none", sun: 2, note: "", potIds: [] }
-          : item
-      ),
-    }));
+  function applyToolToCell(cellId, source = null) {
+    const tool = source || state.clipboard || state.activeTool;
+    patchCells((cells) =>
+      cells.map((cell) =>
+        cell.id === cellId
+          ? {
+              ...cell,
+              structure: tool.structure,
+              crop: tool.crop,
+              sun: tool.sun,
+              note: tool.note || cell.note,
+            }
+          : cell
+      )
+    );
   }
 
-  function placeClipboardOnCell(cellId) {
-    if (!state.clipboard) return;
-    updateCell(cellId, () => ({ ...state.clipboard }));
+  function placePendingPot(cellId) {
+    if (!state.pendingPotIds.length) return;
+    const potId = state.pendingPotIds[0];
+    setState((prev) => {
+      const nextPots = prev.pots.map((pot) => (pot.id === potId ? { ...pot, placedCellId: cellId } : pot));
+      const nextCells = prev.cells.map((cell) =>
+        cell.id === cellId ? { ...cell, potIds: [...new Set([...cell.potIds, potId])] } : cell
+      );
+      return {
+        ...prev,
+        pots: nextPots,
+        cells: nextCells,
+        pendingPotIds: prev.pendingPotIds.slice(1),
+        selectedCellId: cellId,
+        dirty: true,
+      };
+    });
   }
 
-  function createPots() {
-    const count = clamp(Number(state.potBuilder.count || 1), 1, 20);
-    const diameter = clamp(Number(state.potBuilder.diameter || 30), 12, 100);
-    const created = Array.from({ length: count }, (_, index) => ({
-      id: uid(),
-      diameter,
-      cropSuggestion: suggestCropForDiameter(diameter),
-      placedCellId: null,
-      note: "",
-      label: `Pot ${index + 1} • ${diameter} cm`,
-    }));
-    setState((prev) => ({
-      ...prev,
-      pots: [...prev.pots, ...created],
-      pendingPotIds: [...prev.pendingPotIds, ...created.map((pot) => pot.id)],
-      activePotId: created[0]?.id || prev.activePotId,
-      brushMode: false,
-    }));
-    if (isMobile) setMobileTab("pots");
-  }
-
-  function placePotOnCell(cellId) {
-    if (!activePot) return;
-    const cell = state.cells.find((item) => item.id === cellId);
-    if (!cell || ["wall", "fence"].includes(cell.structure)) return;
-    setState((prev) => ({
-      ...prev,
-      pots: prev.pots.map((pot) => (pot.id === activePot.id ? { ...pot, placedCellId: cellId } : pot)),
-      pendingPotIds: prev.pendingPotIds.filter((id) => id !== activePot.id),
-      activePotId: prev.pendingPotIds.filter((id) => id !== activePot.id)[0] || null,
-      cells: prev.cells.map((item) => {
-        if (item.id === cellId && !item.potIds.includes(activePot.id)) {
-          return { ...item, potIds: [...item.potIds, activePot.id] };
-        }
-        return item;
-      }),
-    }));
-  }
-
-  function removePotFromCell(potId) {
+  function removePotFromCell(potId, cellId) {
     setState((prev) => ({
       ...prev,
       pots: prev.pots.map((pot) => (pot.id === potId ? { ...pot, placedCellId: null } : pot)),
-      pendingPotIds: prev.pendingPotIds.includes(potId) ? prev.pendingPotIds : [...prev.pendingPotIds, potId],
       cells: prev.cells.map((cell) =>
-        cell.potIds.includes(potId)
-          ? { ...cell, potIds: cell.potIds.filter((id) => id !== potId) }
-          : cell
+        cell.id === cellId ? { ...cell, potIds: cell.potIds.filter((id) => id !== potId) } : cell
       ),
+      pendingPotIds: [...prev.pendingPotIds, potId],
+      dirty: true,
     }));
   }
 
-  function autoPlacePendingPots() {
-    if (!state.pendingPotIds.length) return;
-    let nextCells = [...state.cells];
-    let nextPots = [...state.pots];
-    const nextPending = [];
-    state.pendingPotIds.forEach((potId) => {
-      const pot = nextPots.find((item) => item.id === potId);
-      if (!pot) return;
-      const best = getBestCellsForPot(nextCells, state, pot, 1)[0];
-      if (!best) {
-        nextPending.push(potId);
-        return;
-      }
-      nextPots = nextPots.map((item) => (item.id === potId ? { ...item, placedCellId: best.cell.id } : item));
-      nextCells = nextCells.map((cell) =>
-        cell.id === best.cell.id ? { ...cell, potIds: [...new Set([...(cell.potIds || []), potId])] } : cell
-      );
+  function createPots() {
+    const created = Array.from({ length: state.potBuilder.count }).map((_, index) => ({
+      id: uid(),
+      label: `Pot ${state.pots.length + index + 1}`,
+      diameter: state.potBuilder.diameter,
+      crop: "none",
+      suggestedCrop: cropOptions
+        .filter((key) => key !== "none")
+        .sort((a, b) => {
+          const as = crops[a].potIdeal.includes(state.potBuilder.diameter) ? 2 : crops[a].potMin <= state.potBuilder.diameter ? 1 : -1;
+          const bs = crops[b].potIdeal.includes(state.potBuilder.diameter) ? 2 : crops[b].potMin <= state.potBuilder.diameter ? 1 : -1;
+          return bs - as;
+        })[0],
+      suggestedCellId: null,
+      placedCellId: null,
+    }));
+    setState((prev) => {
+      const next = [...prev.pots, ...created];
+      const withSuggestions = next.map((pot) => {
+        if (pot.suggestedCellId) return pot;
+        const suggested = nearestSuggestedCell({ ...prev, pots: next }, pot);
+        return { ...pot, suggestedCellId: suggested?.id || null };
+      });
+      return {
+        ...prev,
+        pots: withSuggestions,
+        pendingPotIds: [...prev.pendingPotIds, ...created.map((pot) => pot.id)],
+        activePotId: created[0]?.id || prev.activePotId,
+        dirty: true,
+      };
     });
-    setState((prev) => ({
-      ...prev,
-      pots: nextPots,
-      cells: nextCells,
-      pendingPotIds: nextPending,
-      activePotId: nextPending[0] || null,
-    }));
   }
 
-  function openPhotoPicker() {
-    fileInputRef.current?.click();
+  function handleCellAction(cell, eventType = "click", point = null) {
+    if (state.pendingPotIds.length && cell.structure === "soil") {
+      placePendingPot(cell.id);
+      return;
+    }
+    if (eventType === "context") {
+      setState((prev) => ({
+        ...prev,
+        selectedCellId: cell.id,
+        contextMenu: {
+          x: point?.x || 0,
+          y: point?.y || 0,
+          cellId: cell.id,
+        },
+      }));
+      return;
+    }
+    if (state.brushMode) {
+      applyToolToCell(cell.id);
+      selectCell(cell.id);
+      return;
+    }
+    selectCell(cell.id);
   }
 
-  function loadPhoto(event) {
+  // Repère 4/6 — sauvegarde, import photo, calculs visuels
+  function savePlan() {
+    const snapshot = { ...state, savedAt: new Date().toISOString(), dirty: false, contextMenu: null, infoOpen: null };
+    localStorage.setItem(SAVED_STORAGE, JSON.stringify(snapshot));
+    setState(snapshot);
+  }
+
+  function restorePlan() {
+    const restored = safeRead(SAVED_STORAGE, null);
+    if (!restored) return;
+    setState(normalizeState(restored));
+  }
+
+  function importPhoto(event) {
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -851,856 +663,754 @@ export default function App() {
         ...prev,
         photoPreview: String(reader.result || ""),
         photoName: file.name,
-        diagnosis: {
-          ...prev.diagnosis,
-          confidence: "assistée",
-          note: "Photo chargée : le diagnostic reste guidé, mais les suggestions IA gagnent en contexte.",
-        },
+        dirty: true,
       }));
     };
     reader.readAsDataURL(file);
   }
 
-  function onCellClick(cell) {
-    if (state.activePotId) {
-      placePotOnCell(cell.id);
-      return;
-    }
-    if (state.brushMode && state.clipboard) {
-      placeClipboardOnCell(cell.id);
-      setState((prev) => ({ ...prev, selectedCellId: cell.id }));
-      return;
-    }
-    setState((prev) => ({ ...prev, selectedCellId: cell.id }));
+  function planGlow() {
+    if (state.liveWeather.wind >= 30) return "0 0 0 1px rgba(255,255,255,0.06), 0 0 120px rgba(120,112,255,0.14)";
+    return "0 0 0 1px rgba(255,255,255,0.06), 0 0 140px rgba(108,190,255,0.10), 0 0 70px rgba(255,178,112,0.08)";
   }
 
-  function onCellRightClick(event, cell) {
-    event.preventDefault();
-    event.stopPropagation();
-    setState((prev) => ({
-      ...prev,
-      selectedCellId: cell.id,
-      contextMenu: {
-        cellId: cell.id,
-        x: event.clientX,
-        y: event.clientY,
-        items: [
-          { key: "copy", label: "Copier la case comme pinceau" },
-          { key: "paste", label: prev.clipboard ? "Coller le pinceau ici" : "Aucun modèle à coller" },
-          { key: "quick-soil", label: "Passer en terre / culture" },
-          { key: "quick-wall", label: "Marquer mur" },
-          { key: "quick-fence", label: "Tracer clôture" },
-          { key: "quick-terrace", label: "Marquer terrasse" },
-          { key: "erase", label: "Vider la case" },
-        ],
-      },
-    }));
-  }
+  const planCellSize = clamp(state.zoom, 32, 72);
 
-  function handleContextAction(key) {
-    const menu = state.contextMenu;
-    if (!menu) return;
-    const cellId = menu.cellId;
-    if (key === "copy") copySelectedCell();
-    if (key === "paste" && state.clipboard) placeClipboardOnCell(cellId);
-    if (key === "quick-soil") updateCell(cellId, () => ({ structure: "soil", crop: "none" }));
-    if (key === "quick-wall") updateCell(cellId, () => ({ structure: "wall", crop: "none" }));
-    if (key === "quick-fence") updateCell(cellId, () => ({ structure: "fence", crop: "none" }));
-    if (key === "quick-terrace") updateCell(cellId, () => ({ structure: "terrace", crop: "none" }));
-    if (key === "erase") clearCell(cellId);
-    setField({ contextMenu: null });
-  }
+  // Repère 5/6 — rendu principal premium animé
+  return (
+    <div className="mp-root">
+      <style>{`
+        :root {
+          color-scheme: dark;
+          --fg: rgba(248,250,252,0.96);
+          --muted: rgba(226,232,240,0.76);
+          --line: rgba(255,255,255,0.12);
+          --glass: rgba(11, 16, 32, 0.56);
+          --glass-2: rgba(8, 12, 24, 0.72);
+          --accent: #8fd8ff;
+          --warm: #ffc48c;
+          --violet: #7c8cff;
+        }
+        * { box-sizing: border-box; }
+        html, body, #root { height: 100%; }
+        body {
+          margin: 0;
+          font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+          background: #0b1020;
+          color: var(--fg);
+        }
+        .mp-root {
+          min-height: 100vh;
+          position: relative;
+          overflow: hidden;
+          background:
+            radial-gradient(1100px 600px at 20% 5%, rgba(110,136,255,0.16), transparent 55%),
+            radial-gradient(900px 640px at 80% 10%, rgba(255,180,105,0.12), transparent 55%),
+            radial-gradient(900px 700px at 50% 100%, rgba(48,92,69,0.24), transparent 58%),
+            linear-gradient(180deg, #060914 0%, #0a1020 44%, #0d1427 100%);
+        }
+        .mp-root::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(600px 220px at 50% 20%, rgba(255,171,116,0.08), transparent 70%),
+            radial-gradient(500px 260px at 15% 75%, rgba(83,221,154,0.08), transparent 70%),
+            radial-gradient(500px 300px at 86% 78%, rgba(130,149,255,0.08), transparent 70%);
+          animation: breathe 14s ease-in-out infinite alternate;
+          pointer-events: none;
+        }
+        .landscape {
+          position: absolute;
+          inset: auto 0 0 0;
+          height: 34vh;
+          pointer-events: none;
+          background:
+            radial-gradient(60% 110% at 10% 100%, rgba(15,37,26,0.84), transparent 60%),
+            radial-gradient(55% 90% at 50% 100%, rgba(13,32,30,0.86), transparent 60%),
+            radial-gradient(60% 100% at 90% 100%, rgba(18,33,44,0.88), transparent 60%);
+          filter: blur(4px);
+          opacity: 0.85;
+        }
+        .hill-a, .hill-b, .hill-c {
+          position: absolute;
+          bottom: -80px;
+          border-radius: 50%;
+          filter: blur(12px);
+          opacity: 0.55;
+        }
+        .hill-a { left: -10%; width: 46%; height: 240px; background: rgba(16,37,27,0.9); }
+        .hill-b { left: 25%; width: 38%; height: 210px; background: rgba(13,28,24,0.94); }
+        .hill-c { right: -5%; width: 46%; height: 250px; background: rgba(14,28,41,0.92); }
+        .firefly {
+          position: absolute;
+          border-radius: 999px;
+          background: radial-gradient(circle, rgba(255,225,150,0.95) 0%, rgba(168,234,255,0.6) 44%, transparent 76%);
+          box-shadow: 0 0 10px rgba(255,220,160,0.45), 0 0 22px rgba(120,184,255,0.25);
+          animation: drift var(--dur) linear infinite, pulse 4.6s ease-in-out infinite;
+          animation-delay: var(--delay);
+          opacity: var(--op);
+          pointer-events: none;
+        }
+        .firefly.blur {
+          filter: blur(0.7px);
+        }
+        .shell {
+          position: relative;
+          z-index: 1;
+          padding: 26px;
+          max-width: 1680px;
+          margin: 0 auto;
+        }
+        .topbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 18px;
+          flex-wrap: wrap;
+          margin-bottom: 18px;
+        }
+        .brand {
+          display: grid;
+          gap: 4px;
+        }
+        .brand-title {
+          font-size: ${isMobile ? "32px" : "56px"};
+          line-height: 0.96;
+          letter-spacing: 0.02em;
+          font-weight: 800;
+          margin: 0;
+        }
+        .brand-sub {
+          color: rgba(226,232,240,0.78);
+          font-size: 14px;
+          max-width: 720px;
+        }
+        .info-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .hero-chip {
+          border-radius: 999px;
+          border: 1px solid rgba(255,255,255,0.12);
+          background: rgba(255,255,255,0.06);
+          color: rgba(248,250,252,0.94);
+          padding: 10px 14px;
+          font-size: 13px;
+          backdrop-filter: blur(12px);
+          box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+        }
+        .layout {
+          display: grid;
+          grid-template-columns: ${isMobile ? "1fr" : state.rightRailOpen ? "minmax(0, 1.35fr) 390px" : "1fr"};
+          gap: 18px;
+          align-items: start;
+        }
+        .plan-shell {
+          border-radius: 34px;
+          background: linear-gradient(180deg, rgba(11,16,32,0.48), rgba(11,16,32,0.70));
+          border: 1px solid rgba(255,255,255,0.12);
+          box-shadow: ${planGlow()};
+          backdrop-filter: blur(14px);
+          overflow: hidden;
+        }
+        .plan-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          padding: 16px 18px 12px;
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .plan-title {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .plan-title h2 {
+          margin: 0;
+          font-size: 19px;
+          letter-spacing: 0.04em;
+        }
+        .tool-dock {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          padding: 14px 16px;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .dock-btn, .ghost-btn, .primary-btn, .icon-btn, .context-btn, select, input, textarea {
+          outline: none;
+        }
+        .dock-btn, .ghost-btn, .primary-btn, .icon-btn, .context-btn {
+          color: rgba(248,250,252,0.96);
+          cursor: pointer;
+        }
+        .dock-btn {
+          min-width: 44px;
+          min-height: 44px;
+          border-radius: 18px;
+          border: 1px solid rgba(255,255,255,0.12);
+          background: rgba(255,255,255,0.07);
+          box-shadow: 0 14px 26px rgba(0,0,0,0.18);
+          padding: 10px 14px;
+          font-weight: 700;
+        }
+        .dock-btn.active {
+          background: linear-gradient(135deg, rgba(255,179,108,0.18), rgba(125,141,255,0.16));
+          border-color: rgba(255,223,196,0.25);
+        }
+        .ghost-btn {
+          border-radius: 16px;
+          border: 1px solid rgba(255,255,255,0.10);
+          background: rgba(255,255,255,0.05);
+          padding: 10px 13px;
+          font-weight: 700;
+        }
+        .primary-btn {
+          border-radius: 16px;
+          border: 1px solid rgba(255,221,195,0.22);
+          background: linear-gradient(135deg, rgba(255,167,95,0.24), rgba(116,136,255,0.20));
+          padding: 10px 14px;
+          font-weight: 800;
+          box-shadow: 0 12px 24px rgba(0,0,0,0.18);
+        }
+        .icon-btn {
+          min-width: 40px;
+          min-height: 40px;
+          border-radius: 14px;
+          border: 1px solid rgba(255,255,255,0.10);
+          background: rgba(255,255,255,0.06);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18px;
+        }
+        .plan-stage {
+          padding: 18px;
+        }
+        .plan-scroll {
+          width: 100%;
+          overflow: auto;
+          padding: 8px;
+        }
+        .plan-grid {
+          display: grid;
+          gap: 8px;
+          width: max-content;
+          min-width: 100%;
+        }
+        .cell {
+          position: relative;
+          border-radius: 16px;
+          border: 1px solid rgba(255,255,255,0.10);
+          overflow: hidden;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 8px 18px rgba(0,0,0,0.16);
+          transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+          user-select: none;
+        }
+        .cell:hover {
+          transform: translateY(-1px);
+          border-color: rgba(255,255,255,0.18);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 14px 24px rgba(0,0,0,0.20);
+        }
+        .cell.selected {
+          border-color: rgba(255,218,183,0.28);
+          box-shadow: inset 0 0 0 1px rgba(255,218,183,0.18), 0 14px 28px rgba(0,0,0,0.24), 0 0 0 2px rgba(255,218,183,0.06);
+        }
+        .cell-veil {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(180deg, rgba(255,255,255,0.05), transparent 28%, rgba(0,0,0,0.14));
+          pointer-events: none;
+        }
+        .cell-inner {
+          position: relative;
+          inset: 0;
+          display: grid;
+          grid-template-rows: auto 1fr auto;
+          height: 100%;
+          padding: 8px;
+        }
+        .cell-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 6px;
+          font-size: 11px;
+          color: rgba(241,245,249,0.92);
+        }
+        .cell-mini {
+          font-size: 10px;
+          color: rgba(226,232,240,0.76);
+        }
+        .cell-status-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 999px;
+          box-shadow: 0 0 10px currentColor;
+        }
+        .cell-center {
+          display: grid;
+          align-content: center;
+          justify-items: center;
+          gap: 4px;
+        }
+        .cell-crop {
+          font-size: 18px;
+          line-height: 1;
+        }
+        .cell-struct {
+          font-size: 11px;
+          opacity: 0.88;
+          text-align: center;
+        }
+        .cell-bottom {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 6px;
+          font-size: 10px;
+          color: rgba(226,232,240,0.76);
+        }
+        .pot-dot {
+          width: 9px;
+          height: 9px;
+          border-radius: 999px;
+          background: radial-gradient(circle, rgba(255,223,140,1), rgba(255,172,89,0.88));
+          box-shadow: 0 0 10px rgba(255,200,120,0.6);
+        }
+        .plan-widgets {
+          display: grid;
+          grid-template-columns: repeat(${isMobile ? 1 : 3}, minmax(0, 1fr));
+          gap: 14px;
+          padding: 0 18px 18px;
+        }
+        .widget-compact {
+          border-radius: 22px;
+          border: 1px solid rgba(255,255,255,0.10);
+          background: rgba(255,255,255,0.05);
+          box-shadow: 0 14px 28px rgba(0,0,0,0.16);
+          padding: 14px 16px;
+          min-height: 92px;
+        }
+        .widget-label {
+          font-size: 12px;
+          letter-spacing: 0.08em;
+          color: rgba(191,219,254,0.82);
+          text-transform: uppercase;
+          margin-bottom: 8px;
+        }
+        .widget-text {
+          line-height: 1.5;
+          color: rgba(248,250,252,0.92);
+        }
+        .field, select, textarea {
+          width: 100%;
+          border-radius: 16px;
+          border: 1px solid rgba(255,255,255,0.12);
+          background: rgba(255,255,255,0.06);
+          color: rgba(248,250,252,0.96);
+          padding: 12px 13px;
+          font-size: 14px;
+          backdrop-filter: blur(12px);
+        }
+        select option {
+          color: #111827;
+          background: #f8fafc;
+        }
+        textarea { min-height: 90px; resize: vertical; }
+        .field-row { display: grid; gap: 8px; }
+        .field-label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          color: rgba(226,232,240,0.84);
+        }
+        .right-rail {
+          display: grid;
+          gap: 18px;
+        }
+        .mini-grid {
+          display: grid;
+          gap: 10px;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .context-menu {
+          position: fixed;
+          z-index: 60;
+          width: 250px;
+          border-radius: 20px;
+          border: 1px solid rgba(255,255,255,0.12);
+          background: rgba(8,12,24,0.92);
+          box-shadow: 0 22px 44px rgba(0,0,0,0.45);
+          backdrop-filter: blur(16px);
+          padding: 10px;
+        }
+        .context-btn {
+          width: 100%;
+          text-align: left;
+          border: none;
+          background: transparent;
+          border-radius: 14px;
+          padding: 11px 12px;
+          color: rgba(248,250,252,0.95);
+          font-weight: 700;
+        }
+        .context-btn:hover {
+          background: rgba(255,255,255,0.08);
+        }
+        .small-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .mono { font-variant-numeric: tabular-nums; }
+        .photo-thumb {
+          width: 100%;
+          aspect-ratio: 16 / 9;
+          object-fit: cover;
+          border-radius: 18px;
+          border: 1px solid rgba(255,255,255,0.10);
+          box-shadow: 0 16px 28px rgba(0,0,0,0.18);
+        }
+        .rail-toggle {
+          position: fixed;
+          right: 18px;
+          top: 18px;
+          z-index: 55;
+        }
+        @keyframes drift {
+          0% { transform: translate3d(0,0,0) scale(0.95); }
+          25% { transform: translate3d(18px,-10px,0) scale(1); }
+          50% { transform: translate3d(-10px,-22px,0) scale(0.92); }
+          75% { transform: translate3d(14px,8px,0) scale(1.04); }
+          100% { transform: translate3d(0,0,0) scale(0.95); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 0.2; }
+          50% { opacity: 0.95; }
+        }
+        @keyframes breathe {
+          0% { transform: scale(1) translateY(0px); opacity: 0.92; }
+          100% { transform: scale(1.03) translateY(-8px); opacity: 1; }
+        }
+        @media (max-width: 920px) {
+          .shell { padding: 14px; }
+          .plan-head { padding: 14px; }
+          .tool-dock { padding: 12px 14px; }
+          .plan-stage { padding: 12px; }
+          .context-menu { width: min(280px, calc(100vw - 24px)); }
+        }
+      `}</style>
 
-  // Repère 3/6 — calculs, suggestions, états vivants et widgets
-  const placedPots = useMemo(() => state.pots.filter((pot) => pot.placedCellId), [state.pots]);
-  const pendingPots = useMemo(
-    () => state.pendingPotIds.map((id) => state.pots.find((pot) => pot.id === id)).filter(Boolean),
-    [state.pendingPotIds, state.pots]
-  );
-  const totalCultivatedCells = useMemo(
-    () => state.cells.filter((cell) => cell.crop !== "none" || cell.structure === "soil").length,
-    [state.cells]
-  );
-  const dailyWater = useMemo(
-    () =>
-      state.cells.reduce((sum, cell) => sum + (crops[cell.crop]?.water || 0), 0) +
-      placedPots.reduce((sum, pot) => sum + (crops[pot.cropSuggestion]?.water || 0) * 0.6, 0),
-    [state.cells, placedPots]
-  );
-  const planMood = useMemo(() => {
-    if (pendingPots.length) return "Pots en attente de placement";
-    if (unsaved) return "Plan modifié, pense à sauvegarder";
-    if (state.aiEnabled) return "Assistant IA actif sur le plan";
-    return "Plan stable";
-  }, [pendingPots.length, unsaved, state.aiEnabled]);
-
-  const selectedCellAdvice = useMemo(() => {
-    if (!selectedCell) return null;
-    const bestForCell = cropOptions
-      .filter((key) => key !== "none")
-      .map((key) => ({ key, score: scoreCellForCrop(selectedCell, state, key) }))
-      .sort((a, b) => b.score - a.score)[0];
-    const potsInCell = (selectedCell.potIds || []).map((id) => potsById[id]).filter(Boolean);
-    const baseText = bestForCell
-      ? `${crops[bestForCell.key].icon} Meilleure piste : ${crops[bestForCell.key].label}`
-      : "Analyse indisponible";
-    let why = "";
-    if (bestForCell) {
-      const sun = effectiveSun(selectedCell, state);
-      why = `soleil ${sun}/3, structure ${structures[selectedCell.structure]?.label.toLowerCase()}`;
-      if (state.photoName) why += ", photo prise en compte dans le diagnostic assisté";
-    }
-    return {
-      baseText,
-      why,
-      potsInCell,
-      bestForCell,
-    };
-  }, [selectedCell, state, potsById]);
-
-  const activeHighlightCellIds = useMemo(() => {
-    if (state.activePotId && activePot) {
-      return getBestCellsForPot(state.cells, state, activePot, 8).map((item) => item.cell.id);
-    }
-    if (state.brushMode && state.clipboard?.crop && state.clipboard.crop !== "none") {
-      return getBestCellsForCrop(state.cells, state, state.clipboard.crop, 8).map((item) => item.cell.id);
-    }
-    if (state.activeTool.crop !== "none") {
-      return getBestCellsForCrop(state.cells, state, state.activeTool.crop, 6).map((item) => item.cell.id);
-    }
-    return [];
-  }, [state, activePot]);
-
-  const overdueCount = useMemo(() => {
-    const hotCells = state.cells.filter((cell) => scoreCellForCrop(cell, state, cell.crop) < 0 && cell.crop !== "none").length;
-    return hotCells;
-  }, [state.cells, state]);
-
-  const todayCount = useMemo(() => {
-    const hotWeather = state.liveWeather.temp > 26 ? 2 : 0;
-    return pendingPots.length + hotWeather;
-  }, [pendingPots.length, state.liveWeather.temp]);
-
-  const liveBanner = useMemo(() => {
-    const parts = [];
-    parts.push(`${state.liveWeather.temp}°C`);
-    parts.push(`vent ${state.liveWeather.wind} km/h`);
-    parts.push(overdueCount ? `${overdueCount} zone${overdueCount > 1 ? "s" : ""} à revoir` : "aucun retard critique");
-    parts.push(todayCount ? `${todayCount} point${todayCount > 1 ? "s" : ""} à suivre` : "journée calme");
-    parts.push(unsaved ? "modifs non sauvegardées" : "plan sauvegardé");
-    return parts.join(" • ");
-  }, [state.liveWeather.temp, state.liveWeather.wind, overdueCount, todayCount, unsaved]);
-
-  function getCellStatus(cell) {
-    const cropScore = cell.crop !== "none" ? scoreCellForCrop(cell, state, cell.crop) : 8;
-    if (cropScore < -10) return "danger";
-    if (cropScore < 6) return "warn";
-    if (state.liveWeather.temp > 28 && effectiveSun(cell, state) >= 3) return "heat";
-    if (cell.potIds?.length) return "pot";
-    return "ok";
-  }
-
-  function cellStatusStyle(status, selected, highlighted) {
-    const base = {
-      ok: {
-        ring: "rgba(255,255,255,0.10)",
-        shadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
-      },
-      warn: {
-        ring: "rgba(255, 204, 102, 0.75)",
-        shadow: "0 0 0 1px rgba(255,204,102,0.32), 0 0 18px rgba(255,204,102,0.20)",
-      },
-      danger: {
-        ring: "rgba(255, 107, 107, 0.88)",
-        shadow: "0 0 0 1px rgba(255,107,107,0.34), 0 0 18px rgba(255,107,107,0.22)",
-      },
-      heat: {
-        ring: "rgba(255, 148, 91, 0.86)",
-        shadow: "0 0 0 1px rgba(255,148,91,0.34), 0 0 18px rgba(255,148,91,0.22)",
-      },
-      pot: {
-        ring: "rgba(132, 201, 255, 0.82)",
-        shadow: "0 0 0 1px rgba(132,201,255,0.32), 0 0 18px rgba(132,201,255,0.20)",
-      },
-    }[status];
-    return {
-      border: selected ? "2px solid rgba(255,255,255,0.88)" : `1px solid ${highlighted ? "rgba(255,255,255,0.40)" : base.ring}`,
-      boxShadow: highlighted
-        ? "0 0 0 1px rgba(255,255,255,0.34), 0 0 24px rgba(255,255,255,0.18)"
-        : selected
-          ? "0 0 0 2px rgba(255,255,255,0.88), 0 0 28px rgba(255,255,255,0.16)"
-          : base.shadow,
-    };
-  }
-
-  // Repère 4/6 — rendu du plan, cellules, panneau flottant et menu de création/pinceau
-  function renderPlan() {
-    const cellSize = isCompact ? clamp(state.zoom - 4, 28, 60) : state.zoom;
-    return (
-      <div
-        style={{
-          position: "relative",
-          padding: isMobile ? 12 : 16,
-          minHeight: state.fullscreenPlan ? "calc(100vh - 110px)" : 520,
-          ...glassCardStyle(true),
-          overflow: "hidden",
-        }}
-      >
-        <div
+      {fireflies.map((fly) => (
+        <span
+          key={fly.id}
+          className={cx("firefly", fly.blur && "blur")}
           style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-            background: `
-              radial-gradient(circle at 16% 20%, rgba(255,255,255,0.14), transparent 18%),
-              radial-gradient(circle at 86% 18%, rgba(255,255,255,0.10), transparent 18%),
-              radial-gradient(circle at 50% 100%, rgba(255,209,143,0.18), transparent 26%)
-            `,
+            left: fly.left,
+            top: fly.top,
+            width: fly.size,
+            height: fly.size,
+            ["--dur"]: `${fly.duration}s`,
+            ["--delay"]: `${fly.delay}s`,
+            ["--op"]: fly.opacity,
           }}
         />
+      ))}
+      <div className="landscape">
+        <div className="hill-a" />
+        <div className="hill-b" />
+        <div className="hill-c" />
+      </div>
 
-        <div style={{ display: "grid", gap: 14, position: "relative", zIndex: 2 }}>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 10,
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div style={{ display: "grid", gap: 6 }}>
-              <div style={{ color: "white", fontWeight: 900, fontSize: isMobile ? 22 : 28 }}>
-                {state.planTitle}
-              </div>
-              <div style={{ color: "rgba(255,255,255,0.78)", fontSize: 13 }}>{liveBanner}</div>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button onClick={() => setField({ quickPanelOpen: !state.quickPanelOpen })} style={softButton()}>
-                {state.quickPanelOpen ? "Masquer outils" : "Outils"}
-              </button>
-              <button onClick={() => setField({ rightRailOpen: !state.rightRailOpen })} style={softButton()}>
-                {state.rightRailOpen ? "Masquer rail" : "Rail"}
-              </button>
-              <button onClick={() => setField({ fullscreenPlan: !state.fullscreenPlan })} style={softButton()}>
-                {state.fullscreenPlan ? "Quitter plein écran" : "Plein écran"}
-              </button>
-              <button onClick={savePlan} style={strongButton("#22c55e")}>💾 Sauvegarder</button>
+      <div className="shell" onClick={() => state.contextMenu && setState((prev) => ({ ...prev, contextMenu: null }))}>
+        <div className="topbar">
+          <div className="brand">
+            <h1 className="brand-title">{state.planTitle}</h1>
+            <div className="brand-sub">
+              Planification premium du potager, structures du jardin, pots, suggestions IA et ambiance vivante. Les textes d’aide sont volontairement cachés derrière de petits boutons info.
             </div>
           </div>
+          <div className="info-row">
+            <div className="hero-chip">🌡 {state.liveWeather.temp}°C • vent {state.liveWeather.wind} km/h</div>
+            <div className="hero-chip">🧠 {state.aiEnabled ? "IA active" : "IA inactive"}</div>
+            <div className="hero-chip">💾 {state.dirty ? "modifs non sauvegardées" : state.savedAt ? "plan sauvegardé" : "brouillon"}</div>
+            <button className="primary-btn" onClick={(e) => { e.stopPropagation(); savePlan(); }}>Sauvegarder</button>
+            <button className="ghost-btn" onClick={(e) => { e.stopPropagation(); restorePlan(); }}>Restaurer</button>
+            <button className="ghost-btn" onClick={(e) => { e.stopPropagation(); setState((prev) => ({ ...prev, fullscreenPlan: !prev.fullscreenPlan })); }}>{state.fullscreenPlan ? "Quitter plein écran" : "Plein écran"}</button>
+          </div>
+        </div>
 
-          <div style={{ display: "grid", gap: 12 }}>
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <Pill color="rgba(255,255,255,0.14)">Orientation : {orientations.find((item) => item.value === state.orientation)?.label.split(" /")[0]}</Pill>
-                <Pill color="rgba(255,255,255,0.14)">Mode : {state.brushMode ? "Pinceau actif" : state.activePotId ? "Placement pots" : "Sélection"}</Pill>
-                <Pill color={unsaved ? "rgba(255,126,95,0.26)" : "rgba(46, 204, 113, 0.22)"}>{unsaved ? "Modifs non sauvegardées" : "Version enregistrée"}</Pill>
-              </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <span style={{ color: "rgba(255,255,255,0.78)", fontSize: 12 }}>Zoom</span>
-                <input
-                  type="range"
-                  min={28}
-                  max={76}
-                  step={2}
-                  value={state.zoom}
-                  onChange={(e) => setField({ zoom: Number(e.target.value) })}
+        <div className="layout" style={state.fullscreenPlan && !isMobile ? { gridTemplateColumns: "1fr" } : undefined}>
+          <div className="plan-shell">
+            <div className="plan-head">
+              <div className="plan-title">
+                <div style={{ display: "grid", gap: 4 }}>
+                  <h2>Plan vivant</h2>
+                  <div style={{ fontSize: 13, color: "rgba(191,219,254,0.84)" }}>Clic gauche : sélectionner • clic droit : actions rapides • pinceau : tracer vite</div>
+                </div>
+                <InfoDot
+                  id="plan-info"
+                  openId={state.infoOpen}
+                  setOpenId={(id) => setState((prev) => ({ ...prev, infoOpen: id }))}
+                  title="Comment fonctionne le plan ?"
+                  text="Le plan reste volontairement compact. La structure du jardin se pose d’abord, les cultures et les pots viennent ensuite. Les détails longs sont cachés ici pour laisser l’utilisateur découvrir l’outil sans surcharge visuelle."
                 />
+              </div>
+              <div className="small-row">
+                {presets.map((preset) => (
+                  <button key={preset.label} className="ghost-btn" onClick={(e) => { e.stopPropagation(); setState((prev) => applyPreset(prev, preset.rows, preset.cols)); }}>{preset.label}</button>
+                ))}
+                {!isMobile ? (
+                  <button className="ghost-btn" onClick={(e) => { e.stopPropagation(); setState((prev) => ({ ...prev, rightRailOpen: !prev.rightRailOpen })); }}>{state.rightRailOpen ? "Masquer rail" : "Afficher rail"}</button>
+                ) : null}
               </div>
             </div>
 
-            {state.quickPanelOpen ? (
-              <div
-                style={{
-                  display: "grid",
-                  gap: 12,
-                  gridTemplateColumns: isMobile ? "1fr" : "1.3fr 1fr 1fr 1fr",
-                }}
-              >
-                <div style={{ ...glassCardStyle(), padding: 12, display: "grid", gap: 10 }}>
-                  <div style={{ color: "white", fontWeight: 800 }}>Atelier de case</div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {structureOptions.map((key) => (
-                      <button
-                        key={key}
-                        onClick={() => setState((prev) => ({ ...prev, activeTool: { ...prev.activeTool, structure: key } }))}
-                        style={smallChip(state.activeTool.structure === key)}
-                      >
-                        {structures[key].icon} {structures[key].label}
-                      </button>
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {cropOptions.map((key) => (
-                      <button
-                        key={key}
-                        onClick={() => setState((prev) => ({ ...prev, activeTool: { ...prev.activeTool, crop: key } }))}
-                        style={smallChip(state.activeTool.crop === key)}
-                      >
-                        {crops[key].icon || "•"} {crops[key].label}
-                      </button>
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                    {sunlightOptions.map((value) => (
-                      <button
-                        key={value}
-                        onClick={() => setState((prev) => ({ ...prev, activeTool: { ...prev.activeTool, sun: value } }))}
-                        style={smallChip(state.activeTool.sun === value)}
-                      >
-                        ☀ {value}
-                      </button>
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button onClick={buildClipboardFromTool} style={strongButton("#7c3aed")}>Créer le pinceau</button>
-                    <button onClick={() => setField({ brushMode: !state.brushMode, activePotId: null })} style={softButton()}>
-                      {state.brushMode ? "Désactiver pinceau" : "Activer pinceau"}
-                    </button>
-                    <button onClick={copySelectedCell} style={softButton()} disabled={!selectedCell}>
-                      Copier sélection
-                    </button>
-                  </div>
-                </div>
+            <div className="tool-dock">
+              <button className={cx("dock-btn", state.brushMode && "active")} onClick={(e) => { e.stopPropagation(); setState((prev) => ({ ...prev, brushMode: !prev.brushMode })); }}>🖌️</button>
+              <button className="dock-btn" onClick={(e) => { e.stopPropagation(); copyCellToClipboard(selectedCell || state.activeTool); }}>📋</button>
+              <button className="dock-btn" onClick={(e) => { e.stopPropagation(); if (state.selectedCellId) applyToolToCell(state.selectedCellId); }}>🧩</button>
+              <button className="dock-btn" onClick={(e) => { e.stopPropagation(); createPots(); }}>🪴</button>
+              <div style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.08)" }} />
+              <PillButton active={state.activeTool.structure === "soil"} onClick={() => patch({ activeTool: { ...state.activeTool, structure: "soil" } })}>Terre</PillButton>
+              <PillButton active={state.activeTool.structure === "fence"} onClick={() => patch({ activeTool: { ...state.activeTool, structure: "fence" } })}>Clôture</PillButton>
+              <PillButton active={state.activeTool.structure === "wall"} onClick={() => patch({ activeTool: { ...state.activeTool, structure: "wall" } })}>Mur</PillButton>
+              <PillButton active={state.activeTool.structure === "terrace"} onClick={() => patch({ activeTool: { ...state.activeTool, structure: "terrace" } })}>Terrasse</PillButton>
+              <PillButton active={state.activeTool.structure === "path"} onClick={() => patch({ activeTool: { ...state.activeTool, structure: "path" } })}>Allée</PillButton>
+              <div style={{ flex: 1 }} />
+              <div className="hero-chip mono">{state.rows} × {state.cols}</div>
+              <div className="hero-chip mono">{planMetrics.structureCount} zones</div>
+              <div className="hero-chip mono">{state.pots.length} pots</div>
+            </div>
 
-                <div style={{ ...glassCardStyle(), padding: 12, display: "grid", gap: 10 }}>
-                  <div style={{ color: "white", fontWeight: 800 }}>Formats rapides</div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {planPresets.map((preset) => (
-                      <button key={preset.label} onClick={() => applyPreset(preset.rows, preset.cols)} style={smallChip(false)}>
-                        {preset.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 8 }}>
-                    <button onClick={() => growGrid(1, 0)} style={softButton()}>+1 ligne</button>
-                    <button onClick={() => growGrid(0, 1)} style={softButton()}>+1 colonne</button>
-                    <button onClick={() => growGrid(2, 0)} style={softButton()}>+2 lignes</button>
-                    <button onClick={() => growGrid(0, 2)} style={softButton()}>+2 colonnes</button>
-                  </div>
-                </div>
-
-                <div style={{ ...glassCardStyle(), padding: 12, display: "grid", gap: 10 }}>
-                  <div style={{ color: "white", fontWeight: 800 }}>Pots</div>
-                  <div style={{ display: "grid", gap: 8 }}>
-                    <label style={{ color: "rgba(255,255,255,0.76)", fontSize: 12 }}>
-                      Nombre
-                      <input
-                        type="number"
-                        min={1}
-                        max={20}
-                        value={state.potBuilder.count}
-                        onChange={(e) => setState((prev) => ({ ...prev, potBuilder: { ...prev.potBuilder, count: Number(e.target.value) } }))}
-                        style={fieldStyle()}
-                      />
-                    </label>
-                    <label style={{ color: "rgba(255,255,255,0.76)", fontSize: 12 }}>
-                      Diamètre (cm)
-                      <input
-                        type="number"
-                        min={12}
-                        max={100}
-                        value={state.potBuilder.diameter}
-                        onChange={(e) => setState((prev) => ({ ...prev, potBuilder: { ...prev.potBuilder, diameter: Number(e.target.value) } }))}
-                        style={fieldStyle()}
-                      />
-                    </label>
-                    <button onClick={createPots} style={strongButton("#f97316")}>Créer les pots</button>
-                    <button onClick={autoPlacePendingPots} style={softButton()} disabled={!pendingPots.length}>Placement suggéré IA</button>
-                  </div>
-                </div>
-
-                <div style={{ ...glassCardStyle(), padding: 12, display: "grid", gap: 10 }}>
-                  <div style={{ color: "white", fontWeight: 800 }}>Diagnostic IA</div>
-                  <div style={{ display: "grid", gap: 8 }}>
-                    <button onClick={openPhotoPicker} style={softButton()}>
-                      {state.photoName ? `📷 ${state.photoName}` : "Ajouter une photo du jardin"}
-                    </button>
-                    <label style={{ color: "rgba(255,255,255,0.76)", fontSize: 12 }}>
-                      Côté lumineux
-                      <select
-                        value={state.diagnosis.brightSide}
-                        onChange={(e) => setState((prev) => ({ ...prev, diagnosis: { ...prev.diagnosis, brightSide: e.target.value } }))}
-                        style={fieldStyle()}
-                      >
-                        {orientations.map((item) => <option key={item.value} value={item.value}>{item.value}</option>)}
-                      </select>
-                    </label>
-                    <label style={{ color: "rgba(255,255,255,0.76)", fontSize: 12 }}>
-                      Côté ombragé
-                      <select
-                        value={state.diagnosis.shadedSide}
-                        onChange={(e) => setState((prev) => ({ ...prev, diagnosis: { ...prev.diagnosis, shadedSide: e.target.value } }))}
-                        style={fieldStyle()}
-                      >
-                        {orientations.map((item) => <option key={item.value} value={item.value}>{item.value}</option>)}
-                      </select>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: !isMobile && state.rightRailOpen ? "1fr 320px" : "1fr",
-                gap: 14,
-                alignItems: "start",
-              }}
-            >
-              <div
-                style={{
-                  position: "relative",
-                  minHeight: 420,
-                  padding: 12,
-                  borderRadius: 24,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))",
-                  overflow: "auto",
-                }}
-              >
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: `repeat(${state.cols}, ${cellSize}px)`,
-                    gap: 6,
-                    minWidth: "max-content",
-                    paddingBottom: 8,
-                  }}
-                >
+            <div className="plan-stage">
+              <div className="plan-scroll">
+                <div className="plan-grid" style={{ gridTemplateColumns: `repeat(${state.cols}, ${planCellSize}px)` }}>
                   {state.cells.map((cell) => {
                     const structure = structures[cell.structure];
                     const crop = crops[cell.crop];
-                    const selected = cell.id === state.selectedCellId;
-                    const highlighted = activeHighlightCellIds.includes(cell.id);
-                    const status = getCellStatus(cell);
-                    const styleState = cellStatusStyle(status, selected, highlighted);
-                    const sunValue = effectiveSun(cell, state);
-                    const cellPots = (cell.potIds || []).map((id) => potsById[id]).filter(Boolean);
-                    const opacity = cell.structure === "empty" && cell.crop === "none" && !cellPots.length ? 0.88 : 1;
+                    const selected = state.selectedCellId === cell.id;
+                    const status = getStatusForCell(cell, state);
+                    const potPlaced = cell.potIds.map((potId) => state.pots.find((pot) => pot.id === potId)).filter(Boolean);
+                    const pendingSuggestion = state.pendingPotIds.length && state.pots.find((pot) => pot.id === state.pendingPotIds[0])?.suggestedCellId === cell.id;
+                    const hoverPreview = hoverCellId === cell.id && state.brushMode;
+                    const sizeStyle = {
+                      width: planCellSize,
+                      height: planCellSize,
+                      background: structure.tone,
+                      backgroundImage: structureTexture(cell.structure),
+                    };
                     return (
-                      <button
+                      <div
                         key={cell.id}
-                        title={buildCellTooltip(cell, state, potsById)}
-                        onClick={() => onCellClick(cell)}
-                        onDoubleClick={() => setField({ selectedCellId: cell.id, rightRailOpen: true })}
-                        onContextMenu={(event) => onCellRightClick(event, cell)}
-                        style={{
-                          width: cellSize,
-                          height: cellSize,
-                          borderRadius: 16,
-                          background: `linear-gradient(180deg, ${structure.color}, rgba(255,255,255,0.04))`,
-                          position: "relative",
-                          overflow: "hidden",
-                          cursor: "pointer",
-                          opacity,
-                          transition: "transform 120ms ease, box-shadow 160ms ease, border 160ms ease",
-                          ...styleState,
+                        className={cx("cell", selected && "selected")}
+                        style={sizeStyle}
+                        onMouseEnter={() => {
+                          setHoverCellId(cell.id);
+                          if (painting && state.brushMode) applyToolToCell(cell.id);
+                        }}
+                        onMouseDown={(event) => {
+                          event.stopPropagation();
+                          if (event.button === 2) return;
+                          setPainting(true);
+                          handleCellAction(cell, "click");
+                        }}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleCellAction(cell, "click");
+                        }}
+                        onContextMenu={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          handleCellAction(cell, "context", { x: event.clientX, y: event.clientY });
                         }}
                       >
-                        <div
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            background: crop.color !== "transparent"
-                              ? `radial-gradient(circle at 70% 30%, ${crop.color}55, transparent 46%)`
-                              : "transparent",
-                            pointerEvents: "none",
-                          }}
-                        />
-                        <div
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            padding: 5,
-                            display: "flex",
-                            flexDirection: "column",
-                            justifyContent: "space-between",
-                            color: "white",
-                          }}
-                        >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
-                            <span style={{ fontSize: 10, opacity: 0.9 }}>{structure.icon}</span>
-                            <span style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: 999,
-                              background:
-                                status === "danger" ? "#ff6b6b" :
-                                status === "warn" ? "#ffd166" :
-                                status === "heat" ? "#ff9f68" :
-                                status === "pot" ? "#7bdff2" : "#59d98e",
-                            }} />
+                        <div className="cell-veil" />
+                        <div className="cell-inner">
+                          <div className="cell-top">
+                            <div>{cell.row + 1}.{cell.col + 1}</div>
+                            <div className="cell-status-dot" style={{ color: statusAccent(status), background: statusAccent(status) }} />
                           </div>
-                          <div style={{ display: "grid", placeItems: "center", gap: 2 }}>
-                            <span style={{ fontSize: cellSize < 40 ? 14 : 16 }}>{crop.icon || (cellPots.length ? "🪴" : "")}</span>
-                            {cellPots.length ? (
-                              <div style={{ fontSize: 9, fontWeight: 900, lineHeight: 1, background: "rgba(255,255,255,0.12)", borderRadius: 999, padding: "2px 5px" }}>
-                                {cellPots.length} pot
-                              </div>
-                            ) : null}
+                          <div className="cell-center">
+                            <div className="cell-crop">{crop.icon || structure.icon}</div>
+                            <div className="cell-struct">{crop.label !== "Aucune culture" ? crop.label : structure.label}</div>
                           </div>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span style={{ fontSize: 9, fontWeight: 800, opacity: 0.86 }}>{sunValue}</span>
-                            {cell.crop !== "none" ? <span style={{ fontSize: 9, opacity: 0.84 }}>{cell.crop.slice(0, 2).toUpperCase()}</span> : null}
+                          <div className="cell-bottom">
+                            <div>☀ {cell.sun}</div>
+                            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                              {potPlaced.slice(0, 2).map((pot) => <span key={pot.id} className="pot-dot" title={pot.label} />)}
+                              {potPlaced.length > 2 ? <span>+{potPlaced.length - 2}</span> : null}
+                            </div>
                           </div>
                         </div>
-                      </button>
+                        {pendingSuggestion ? (
+                          <div style={{ position: "absolute", inset: 4, borderRadius: 12, boxShadow: "0 0 0 2px rgba(255,207,120,0.55), 0 0 24px rgba(255,207,120,0.22) inset" }} />
+                        ) : null}
+                        {hoverPreview ? (
+                          <div style={{ position: "absolute", inset: 6, borderRadius: 12, background: "rgba(255,255,255,0.08)", boxShadow: "0 0 0 1px rgba(255,255,255,0.18) inset" }} />
+                        ) : null}
+                      </div>
                     );
                   })}
                 </div>
               </div>
+            </div>
 
-              {!isMobile && state.rightRailOpen ? renderRightRail() : null}
+            <div className="plan-widgets">
+              <div className="widget-compact">
+                <div className="widget-label">IA du moment</div>
+                <div className="widget-text">{mainAdvice}</div>
+              </div>
+              <div className="widget-compact">
+                <div className="widget-label">Aujourd’hui</div>
+                <div className="widget-text">{todayLine}</div>
+              </div>
+              <div className="widget-compact">
+                <div className="widget-label">Statut</div>
+                <div className="widget-text">{state.savedAt ? `Dernière sauvegarde : ${new Date(state.savedAt).toLocaleString()}` : "Aucune sauvegarde manuelle pour le moment."}</div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={loadPhoto} />
-      </div>
-    );
-  }
-
-  function renderRightRail() {
-    return (
-      <div style={{ display: "grid", gap: 12 }}>
-        <div style={{ ...glassCardStyle(), padding: 14, display: "grid", gap: 10 }}>
-          <div style={{ color: "white", fontWeight: 800, fontSize: 16 }}>Case sélectionnée</div>
-          {selectedCell ? (
-            <>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <Pill color="rgba(255,255,255,0.12)">{structures[selectedCell.structure].icon} {structures[selectedCell.structure].label}</Pill>
-                {selectedCell.crop !== "none" ? <Pill color="rgba(255,255,255,0.12)">{crops[selectedCell.crop].icon} {crops[selectedCell.crop].label}</Pill> : null}
-                <Pill color="rgba(255,255,255,0.12)">☀ {effectiveSun(selectedCell, state)}/3</Pill>
-              </div>
-
-              <div style={{ display: "grid", gap: 8 }}>
-                <label style={{ color: "rgba(255,255,255,0.76)", fontSize: 12 }}>
-                  Structure
-                  <select
-                    value={selectedCell.structure}
-                    onChange={(e) => updateCell(selectedCell.id, () => ({ structure: e.target.value }))}
-                    style={fieldStyle()}
-                  >
-                    {structureOptions.map((key) => <option key={key} value={key}>{structures[key].label}</option>)}
-                  </select>
-                </label>
-                <label style={{ color: "rgba(255,255,255,0.76)", fontSize: 12 }}>
-                  Culture
-                  <select
-                    value={selectedCell.crop}
-                    onChange={(e) => updateCell(selectedCell.id, () => ({ crop: e.target.value }))}
-                    style={fieldStyle()}
-                  >
-                    {cropOptions.map((key) => <option key={key} value={key}>{crops[key].label}</option>)}
-                  </select>
-                </label>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {sunlightOptions.map((value) => (
-                    <button key={value} onClick={() => updateCell(selectedCell.id, () => ({ sun: value }))} style={smallChip(selectedCell.sun === value)}>
-                      ☀ {value}
-                    </button>
-                  ))}
-                </div>
-                <textarea
-                  value={selectedCell.note}
-                  onChange={(e) => updateCell(selectedCell.id, () => ({ note: e.target.value }))}
-                  placeholder="Note rapide pour cette case"
-                  style={{ ...fieldStyle(), minHeight: 74, resize: "vertical" }}
-                />
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button onClick={copySelectedCell} style={softButton()}>Copier comme pinceau</button>
-                  <button onClick={() => clearCell(selectedCell.id)} style={softButton()}>Vider</button>
-                </div>
-              </div>
-
-              {selectedCellAdvice ? (
-                <div style={{ display: "grid", gap: 8, padding: 12, borderRadius: 18, background: "rgba(255,255,255,0.06)" }}>
-                  <div style={{ color: "white", fontWeight: 800 }}>Suggestion IA</div>
-                  <div style={{ color: "white", fontSize: 14 }}>{selectedCellAdvice.baseText}</div>
-                  <div style={{ color: "rgba(255,255,255,0.72)", fontSize: 12 }}>{selectedCellAdvice.why}</div>
-                  {selectedCellAdvice.potsInCell.length ? (
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {selectedCellAdvice.potsInCell.map((pot) => (
-                        <button key={pot.id} onClick={() => removePotFromCell(pot.id)} style={smallChip(false)}>
-                          🪴 {pot.diameter} cm
-                        </button>
+          {(!isMobile || state.rightRailOpen) && !state.fullscreenPlan ? (
+            <div className="right-rail">
+              <SectionCard
+                title="Case active"
+                right={
+                  <InfoDot
+                    id="cell-info"
+                    openId={state.infoOpen}
+                    setOpenId={(id) => setState((prev) => ({ ...prev, infoOpen: id }))}
+                    title="Pourquoi si peu de texte ?"
+                    text="Les explications détaillées sont volontairement masquées derrière ces petits boutons. L’objectif est de laisser l’utilisateur découvrir l’outil et d’éviter un mur d’informations autour du plan."
+                  />
+                }
+              >
+                {selectedCell ? (
+                  <div style={{ display: "grid", gap: 12 }}>
+                    <div style={{ display: "grid", gap: 6 }}>
+                      <div style={{ color: "rgba(191,219,254,0.85)", fontSize: 13 }}>Position</div>
+                      <div style={{ fontWeight: 700 }}>Case {selectedCell.row + 1}.{selectedCell.col + 1}</div>
+                    </div>
+                    <div className="field-row">
+                      <div className="field-label">Structure</div>
+                      <select value={selectedCell.structure} onChange={(e) => updateSelectedCell({ structure: e.target.value })}>
+                        {structureOptions.map((key) => <option key={key} value={key}>{structures[key].label}</option>)}
+                      </select>
+                    </div>
+                    <div className="field-row">
+                      <div className="field-label">Culture</div>
+                      <select value={selectedCell.crop} onChange={(e) => updateSelectedCell({ crop: e.target.value })}>
+                        {cropOptions.map((key) => <option key={key} value={key}>{crops[key].label}</option>)}
+                      </select>
+                    </div>
+                    <div className="mini-grid">
+                      {sunlightOptions.map((value) => (
+                        <PillButton key={value} active={selectedCell.sun === value} onClick={() => updateSelectedCell({ sun: value })}>☀ {value}</PillButton>
                       ))}
                     </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <div style={{ color: "rgba(255,255,255,0.74)", fontSize: 13 }}>Clique une case pour l’éditer, la copier ou lancer le pinceau.</div>
-          )}
-        </div>
+                    <div className="field-row">
+                      <div className="field-label">Note</div>
+                      <textarea value={selectedCell.note} onChange={(e) => updateSelectedCell({ note: e.target.value })} />
+                    </div>
+                    <div style={{ padding: 12, borderRadius: 18, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", lineHeight: 1.6, color: "rgba(226,232,240,0.90)" }}>
+                      {describeCellAdvice(selectedCell, state)}
+                    </div>
+                    <div className="small-row">
+                      <button className="ghost-btn" onClick={() => copyCellToClipboard(selectedCell)}>Copier comme pinceau</button>
+                      <button className="ghost-btn" onClick={() => updateSelectedCell({ crop: "none", structure: "empty", note: "", sun: 2 })}>Vider</button>
+                    </div>
+                    {selectedCell.potIds.length ? (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <div style={{ fontSize: 13, color: "rgba(191,219,254,0.82)" }}>Pots sur cette case</div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {selectedCell.potIds.map((potId) => {
+                            const pot = state.pots.find((item) => item.id === potId);
+                            if (!pot) return null;
+                            return <PotBadge key={pot.id} pot={pot} active={pot.id === state.activePotId} />;
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div style={{ color: "rgba(226,232,240,0.82)", lineHeight: 1.7 }}>Sélectionne une case sur le plan pour ouvrir son atelier compact.</div>
+                )}
+              </SectionCard>
 
-        <div style={{ ...glassCardStyle(), padding: 14, display: "grid", gap: 10 }}>
-          <div style={{ color: "white", fontWeight: 800 }}>Pots en attente</div>
-          {pendingPots.length ? (
-            <div style={{ display: "grid", gap: 8 }}>
-              {pendingPots.slice(0, 6).map((pot) => {
-                const best = getBestCellsForPot(state.cells, state, pot, 1)[0];
-                return (
-                  <button
-                    key={pot.id}
-                    onClick={() => setField({ activePotId: pot.id, brushMode: false })}
-                    style={{
-                      ...softButton(),
-                      textAlign: "left",
-                      border: state.activePotId === pot.id ? "1px solid rgba(255,255,255,0.34)" : "1px solid rgba(255,255,255,0.12)",
-                    }}
-                  >
-                    🪴 {pot.label} • suggéré {crops[pot.cropSuggestion].label}
-                    {best ? ` • meilleure case ${best.cell.row + 1}.${best.cell.col + 1}` : ""}
-                  </button>
-                );
-              })}
+              <SectionCard title="Pots + IA" subtle>
+                <div style={{ display: "grid", gap: 12 }}>
+                  <div className="field-row">
+                    <div className="field-label">Nombre de pots</div>
+                    <div className="small-row">
+                      {[1, 3, 5].map((n) => <PillButton key={n} active={state.potBuilder.count === n} onClick={() => patch({ potBuilder: { ...state.potBuilder, count: n } })}>{n}</PillButton>)}
+                    </div>
+                  </div>
+                  <div className="field-row">
+                    <div className="field-label">Diamètre</div>
+                    <div className="small-row">
+                      {[20, 30, 40].map((n) => <PillButton key={n} active={state.potBuilder.diameter === n} onClick={() => patch({ potBuilder: { ...state.potBuilder, diameter: n } })}>{n} cm</PillButton>)}
+                    </div>
+                  </div>
+                  <div style={{ padding: 12, borderRadius: 18, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    Suggestion : <strong>{suggestedPotText}</strong>
+                  </div>
+                  <button className="primary-btn" onClick={() => createPots()}>Créer les pots</button>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {state.pots.slice(-6).map((pot) => <PotBadge key={pot.id} pot={pot} active={pot.id === state.activePotId} />)}
+                  </div>
+                </div>
+              </SectionCard>
+
+              <SectionCard title="Diagnostic + photo" subtle>
+                <div style={{ display: "grid", gap: 12 }}>
+                  {state.photoPreview ? <img className="photo-thumb" src={state.photoPreview} alt="Diagnostic du jardin" /> : null}
+                  <div className="small-row">
+                    <button className="ghost-btn" onClick={() => photoInputRef.current?.click()}>Charger une photo</button>
+                    {state.photoName ? <div className="hero-chip">{state.photoName}</div> : null}
+                  </div>
+                  <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={importPhoto} />
+                  <div className="field-row">
+                    <div className="field-label">Côté lumineux</div>
+                    <select value={state.diagnosis.brightSide} onChange={(e) => patch({ diagnosis: { ...state.diagnosis, brightSide: e.target.value } })}>
+                      {orientations.map((side) => <option key={side} value={side}>{side}</option>)}
+                    </select>
+                  </div>
+                  <div className="field-row">
+                    <div className="field-label">Côté ombragé</div>
+                    <select value={state.diagnosis.shadedSide} onChange={(e) => patch({ diagnosis: { ...state.diagnosis, shadedSide: e.target.value } })}>
+                      {orientations.map((side) => <option key={side} value={side}>{side}</option>)}
+                    </select>
+                  </div>
+                  <div className="field-row">
+                    <div className="field-label">Vent principal</div>
+                    <select value={state.diagnosis.windSide} onChange={(e) => patch({ diagnosis: { ...state.diagnosis, windSide: e.target.value } })}>
+                      {orientations.map((side) => <option key={side} value={side}>{side}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </SectionCard>
             </div>
-          ) : (
-            <div style={{ color: "rgba(255,255,255,0.74)", fontSize: 13 }}>Aucun pot en attente. Crée un lot de pots ou utilise le placement IA.</div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Repère 5/6 — layout premium desktop/mobile, widgets vivants, inspirations visuelles intégrées
-  function renderTopHero() {
-    return (
-      <div
-        style={{
-          ...glassCardStyle(true),
-          padding: isMobile ? 18 : 26,
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            right: -40,
-            top: -30,
-            width: 260,
-            height: 260,
-            background: "radial-gradient(circle, rgba(255,209,143,0.34) 0%, rgba(255,209,143,0) 70%)",
-            filter: "blur(10px)",
-            pointerEvents: "none",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            left: -40,
-            bottom: -90,
-            width: 360,
-            height: 220,
-            background: "radial-gradient(circle, rgba(124,77,255,0.26) 0%, rgba(124,77,255,0) 70%)",
-            filter: "blur(12px)",
-            pointerEvents: "none",
-          }}
-        />
-        <div style={{ position: "relative", zIndex: 1, display: "grid", gap: 14 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-            <div style={{ display: "grid", gap: 6, maxWidth: 760 }}>
-              <div style={{ color: "rgba(255,255,255,0.70)", textTransform: "uppercase", letterSpacing: 1.6, fontSize: 12, fontWeight: 800 }}>
-                Version 3 premium avec pots • plan vivant • pinceau copier/coller
-              </div>
-              <div style={{ color: "white", fontWeight: 900, lineHeight: 1.02, fontSize: isMobile ? 34 : 56 }}>
-                Un plan de potager
-                <span style={{ display: "block", color: "#ffd8a8" }}>plus beau, plus rapide, plus vivant.</span>
-              </div>
-              <div style={{ color: "rgba(255,255,255,0.82)", maxWidth: 720, fontSize: isMobile ? 14 : 16, lineHeight: 1.6 }}>
-                Le plan devient ton objet principal : tu poses tes structures, tu copies/colles comme un pinceau, tu ajoutes des pots,
-                et l’assistant IA t’indique les meilleures zones selon l’exposition, la météo et le diagnostic assisté par photo.
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gap: 10, minWidth: isMobile ? "100%" : 280, alignContent: "start" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 10 }}>
-                <div style={{ ...glassCardStyle(), padding: 14 }}>
-                  <div style={{ color: "rgba(255,255,255,0.64)", fontSize: 12 }}>Cases</div>
-                  <div style={{ color: "white", fontWeight: 900, fontSize: 28 }}>{state.rows * state.cols}</div>
-                </div>
-                <div style={{ ...glassCardStyle(), padding: 14 }}>
-                  <div style={{ color: "rgba(255,255,255,0.64)", fontSize: 12 }}>Pots</div>
-                  <div style={{ color: "white", fontWeight: 900, fontSize: 28 }}>{state.pots.length}</div>
-                </div>
-                <div style={{ ...glassCardStyle(), padding: 14 }}>
-                  <div style={{ color: "rgba(255,255,255,0.64)", fontSize: 12 }}>Culture utile</div>
-                  <div style={{ color: "white", fontWeight: 900, fontSize: 28 }}>{totalCultivatedCells}</div>
-                </div>
-                <div style={{ ...glassCardStyle(), padding: 14 }}>
-                  <div style={{ color: "rgba(255,255,255,0.64)", fontSize: 12 }}>Eau / jour</div>
-                  <div style={{ color: "white", fontWeight: 900, fontSize: 28 }}>{dailyWater.toFixed(1)}L</div>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <button onClick={savePlan} style={strongButton("#22c55e")}>Sauvegarder</button>
-                <button onClick={restorePlan} style={softButton()}>Restaurer</button>
-                <button onClick={() => setField({ fullscreenPlan: !state.fullscreenPlan })} style={softButton()}>
-                  {state.fullscreenPlan ? "Quitter focus" : "Focus plan"}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Pill color="rgba(255,255,255,0.10)">🌦 {state.liveWeather.temp}°C • vent {state.liveWeather.wind}</Pill>
-            <Pill color="rgba(255,255,255,0.10)">🧠 {planMood}</Pill>
-            <Pill color="rgba(255,255,255,0.10)">📷 {state.photoName ? "photo chargée" : "pas de photo"}</Pill>
-            <Pill color="rgba(255,255,255,0.10)">🪴 {pendingPots.length} pot(s) à placer</Pill>
-            <Pill color="rgba(255,255,255,0.10)">{unsaved ? "✍️ modifié" : "✅ sauvegardé"}</Pill>
-          </div>
+          ) : null}
         </div>
       </div>
-    );
-  }
 
-  function renderAssistantCards() {
-    const aiTopCrop = state.activeTool.crop !== "none" ? state.activeTool.crop : "tomate";
-    const bestCells = getBestCellsForCrop(state.cells, state, aiTopCrop, 5);
-    return (
-      <div style={{ display: "grid", gap: 12, gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr" }}>
-        <div style={{ ...glassCardStyle(), padding: 14, display: "grid", gap: 8 }}>
-          <div style={{ color: "white", fontWeight: 800 }}>Conseil IA principal</div>
-          <div style={{ color: "rgba(255,255,255,0.78)", fontSize: 14, lineHeight: 1.5 }}>
-            {state.aiEnabled
-              ? `Pour ${crops[aiTopCrop].label}, l’assistant privilégie les cellules les plus ${crops[aiTopCrop].vibe === "chaud" ? "chaudes" : "fraîches"} et exposées sur le côté ${state.diagnosis.brightSide}.`
-              : "L’assistant est désactivé : active-le pour obtenir des suggestions de placement et de pots."}
+      {state.contextMenu ? (() => {
+        const target = getCellById(state.cells, state.contextMenu.cellId);
+        if (!target) return null;
+        return (
+          <div className="context-menu" style={{ left: Math.min(state.contextMenu.x, window.innerWidth - 270), top: Math.min(state.contextMenu.y, window.innerHeight - 260) }} onClick={(e) => e.stopPropagation()}>
+            <button className="context-btn" onClick={() => { copyCellToClipboard(target); setState((prev) => ({ ...prev, contextMenu: null })); }}>📋 Copier la case comme pinceau</button>
+            <button className="context-btn" onClick={() => { applyToolToCell(target.id); setState((prev) => ({ ...prev, contextMenu: null })); }}>🖌️ Coller le pinceau ici</button>
+            <button className="context-btn" onClick={() => { setState((prev) => ({ ...prev, selectedCellId: target.id, contextMenu: null })); }}>🧭 Ouvrir la case</button>
+            <button className="context-btn" onClick={() => { patchCells((cells) => cells.map((cell) => cell.id === target.id ? { ...cell, structure: "empty", crop: "none", sun: 2, note: "", potIds: [] } : cell)); setState((prev) => ({ ...prev, contextMenu: null })); }}>🧹 Vider la case</button>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {bestCells.map((item) => (
-              <Pill key={item.cell.id} color="rgba(255,255,255,0.10)">Case {item.cell.row + 1}.{item.cell.col + 1}</Pill>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ ...glassCardStyle(), padding: 14, display: "grid", gap: 8 }}>
-          <div style={{ color: "white", fontWeight: 800 }}>Diagnostic du jardin</div>
-          <div style={{ color: "rgba(255,255,255,0.78)", fontSize: 14, lineHeight: 1.5 }}>
-            Côté lumineux : <strong>{state.diagnosis.brightSide}</strong> • côté ombragé : <strong>{state.diagnosis.shadedSide}</strong> • vent probable : <strong>{state.diagnosis.windSide}</strong>.
-          </div>
-          <div style={{ color: "rgba(255,255,255,0.64)", fontSize: 13 }}>{state.diagnosis.note}</div>
-        </div>
-
-        <div style={{ ...glassCardStyle(), padding: 14, display: "grid", gap: 8 }}>
-          <div style={{ color: "white", fontWeight: 800 }}>Suivi vivant</div>
-          {state.reminderSeed.slice(0, 3).map((item) => (
-            <div key={item.id} style={{ color: "rgba(255,255,255,0.80)", fontSize: 14, lineHeight: 1.45 }}>
-              {item.level === "today" ? "🟠" : "🔵"} {item.text}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <style>{`
-        .potager-v32 select {
-          color: #ffffff;
-        }
-        .potager-v32 select option,
-        .potager-v32 select optgroup {
-          color: #111827;
-          background: #ffffff;
-        }
-        .potager-v32 input::placeholder,
-        .potager-v32 textarea::placeholder {
-          color: rgba(255,255,255,0.46);
-        }
-      `}</style>
-      <div
-        className="potager-v32"
-        style={{
-          minHeight: "100vh",
-          color: "white",
-          fontFamily: "Inter, Arial, sans-serif",
-          padding: isMobile ? 12 : 18,
-          boxSizing: "border-box",
-          ...buildGradientBackground(),
-        }}
-      >
-      <div style={{ maxWidth: 1700, margin: "0 auto", display: "grid", gap: 16 }}>
-        {renderTopHero()}
-
-        {isMobile ? (
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {[
-              ["plan", "Plan"],
-              ["atelier", "Atelier"],
-              ["pots", "Pots"],
-              ["assistant", "Assistant"],
-              ["case", "Case"],
-            ].map(([value, label]) => (
-              <button key={value} onClick={() => setMobileTab(value)} style={smallChip(mobileTab === value)}>
-                {label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        {!isMobile || mobileTab === "plan" ? renderPlan() : null}
-
-        {!isMobile || mobileTab === "atelier" ? (
-          <div style={{ display: isMobile && mobileTab !== "atelier" ? "none" : "grid", gap: 12 }}>
-            {renderAssistantCards()}
-          </div>
-        ) : null}
-
-        {isMobile && mobileTab === "pots" ? (
-          <div style={{ ...glassCardStyle(true), padding: 16, display: "grid", gap: 12 }}>
-            <div style={{ color: "white", fontWeight: 900, fontSize: 20 }}>Gestion des pots</div>
-            <div style={{ display: "grid", gap: 10 }}>
-              <label style={{ fontSize: 13, color: "rgba(255,255,255,0.74)" }}>
-                Nombre
-                <input type="number" min={1} max={20} value={state.potBuilder.count} onChange={(e) => setState((prev) => ({ ...prev, potBuilder: { ...prev.potBuilder, count: Number(e.target.value) } }))} style={fieldStyle()} />
-              </label>
-              <label style={{ fontSize: 13, color: "rgba(255,255,255,0.74)" }}>
-                Diamètre
-                <input type="number" min={12} max={100} value={state.potBuilder.diameter} onChange={(e) => setState((prev) => ({ ...prev, potBuilder: { ...prev.potBuilder, diameter: Number(e.target.value) } }))} style={fieldStyle()} />
-              </label>
-              <button onClick={createPots} style={strongButton("#f97316")}>Créer les pots</button>
-              <button onClick={autoPlacePendingPots} style={softButton()} disabled={!pendingPots.length}>Placement IA</button>
-            </div>
-            <div style={{ display: "grid", gap: 8 }}>
-              {state.pots.map((pot) => (
-                <div key={pot.id} style={{ ...glassCardStyle(), padding: 12, display: "grid", gap: 4 }}>
-                  <div style={{ fontWeight: 800 }}>{pot.label}</div>
-                  <div style={{ color: "rgba(255,255,255,0.75)", fontSize: 13 }}>Suggestion : {crops[pot.cropSuggestion].label}</div>
-                  <div style={{ color: "rgba(255,255,255,0.62)", fontSize: 12 }}>{pot.placedCellId ? "Déjà placé" : "En attente"}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {isMobile && mobileTab === "assistant" ? renderAssistantCards() : null}
-
-        {isMobile && mobileTab === "case" ? (
-          <div style={{ ...glassCardStyle(true), padding: 16 }}>{renderRightRail()}</div>
-        ) : null}
-      </div>
-
-      <RightContextMenu
-        menu={state.contextMenu}
-        onClose={() => setField({ contextMenu: null })}
-        onChoose={handleContextAction}
-      />
-      </div>
-    </>
+        );
+      })() : null}
+    </div>
   );
 }
 
