@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronDown,
@@ -13,10 +13,12 @@ import {
   Flower2,
   PlusCircle,
   X,
+  Minus,
+  Maximize2,
 } from "lucide-react";
 
 const REF_BG = "/background-home.jpg";
-const STORAGE_KEY = "potager-v41-cases";
+const STORAGE_KEY = "potager-v42-cases";
 
 const initialCases = [
   { id: "1", name: "Parcelle A", crop: "Laitue", zone: "Mur gauche", exposure: "Mi-ombre", note: "Zone simple à surveiller." },
@@ -47,7 +49,7 @@ function useLocalStorageState(key, initialValue) {
 
 function shell(extra = {}) {
   return {
-    background: "linear-gradient(180deg, rgba(10,15,36,0.68), rgba(6,9,22,0.82))",
+    background: "linear-gradient(180deg, rgba(8,14,34,0.70), rgba(5,9,22,0.84))",
     border: "1px solid rgba(182,204,255,0.13)",
     borderRadius: 22,
     boxShadow: "0 22px 80px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.05)",
@@ -59,7 +61,7 @@ function shell(extra = {}) {
 
 function soft(extra = {}) {
   return shell({
-    background: "linear-gradient(180deg, rgba(14,20,42,0.78), rgba(7,10,22,0.90))",
+    background: "linear-gradient(180deg, rgba(12,18,40,0.78), rgba(7,10,22,0.90))",
     borderRadius: 16,
     ...extra,
   });
@@ -90,14 +92,18 @@ function fieldStyle() {
 }
 
 function Fireflies() {
-  const dots = Array.from({ length: 24 }).map((_, i) => ({
-    id: i,
-    left: (i * 17) % 100,
-    top: (i * 23) % 100,
-    size: 2 + (i % 4),
-    duration: 6 + (i % 7),
-    delay: (i % 5) * 0.5,
-  }));
+  const dots = useMemo(
+    () =>
+      Array.from({ length: 34 }).map((_, i) => ({
+        id: i,
+        left: Math.random() * 100,
+        top: Math.random() * 100,
+        size: 2 + Math.random() * 4,
+        duration: 4 + Math.random() * 7,
+        delay: Math.random() * 4,
+      })),
+    []
+  );
 
   return (
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
@@ -111,10 +117,16 @@ function Fireflies() {
             width: d.size,
             height: d.size,
             borderRadius: "50%",
-            background: "rgba(255,221,148,0.95)",
-            boxShadow: "0 0 20px rgba(255,213,122,0.78)",
+            background: "rgba(255,224,153,0.96)",
+            boxShadow: "0 0 20px rgba(255,214,118,0.8)",
+            filter: "blur(0.2px)",
           }}
-          animate={{ opacity: [0.15, 0.95, 0.35, 0.15], y: [0, -16, 10, 0], x: [0, 10, -8, 0] }}
+          animate={{
+            opacity: [0.12, 0.95, 0.3, 0.12],
+            y: [0, -10, 6, 0],
+            x: [0, 8, -5, 0],
+            scale: [1, 1.25, 0.95, 1],
+          }}
           transition={{ duration: d.duration, repeat: Infinity, ease: "easeInOut", delay: d.delay }}
         />
       ))}
@@ -122,8 +134,46 @@ function Fireflies() {
   );
 }
 
+function AmbientGlow() {
+  return (
+    <>
+      <motion.div
+        style={{
+          position: "absolute",
+          inset: "8% 10% auto 10%",
+          height: 340,
+          borderRadius: 40,
+          background: "radial-gradient(circle, rgba(114,145,255,0.12), transparent 60%)",
+          filter: "blur(24px)",
+          pointerEvents: "none",
+        }}
+        animate={{ opacity: [0.45, 0.72, 0.45] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        style={{
+          position: "absolute",
+          left: "12%",
+          right: "12%",
+          bottom: "8%",
+          height: 180,
+          background: "radial-gradient(ellipse at center, rgba(255,204,112,0.10), rgba(255,204,112,0.03) 40%, transparent 72%)",
+          filter: "blur(18px)",
+          pointerEvents: "none",
+        }}
+        animate={{ opacity: [0.3, 0.55, 0.3] }}
+        transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
+      />
+    </>
+  );
+}
+
 function Hotspot({ style, onClick, title }) {
   return <button title={title} onClick={onClick} style={{ position: "absolute", background: "transparent", border: "none", cursor: "pointer", ...style }} />;
+}
+
+function LeafBadge({ color }) {
+  return <span style={{ width: 24, height: 16, borderRadius: 10, background: `radial-gradient(circle at 30% 30%, ${color}, rgba(34,68,34,0.96))`, boxShadow: "inset 0 0 8px rgba(255,255,255,0.06)" }} />;
 }
 
 function HomeOverlay({ onOpenPanel, onOpenCreate }) {
@@ -140,7 +190,7 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
   }
 
   return (
-    <div style={shell({ padding: 18 })}>
+    <div style={shell({ padding: 18, boxShadow: "0 32px 90px rgba(0,0,0,0.42), 0 0 60px rgba(90,120,255,0.06), inset 0 1px 0 rgba(255,255,255,0.06)" })}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div style={{ width: 36 }} />
         <div style={{ flex: 1, textAlign: "center", ...titleCaps(20), letterSpacing: 4.2 }}>MON POTAGER</div>
@@ -159,11 +209,12 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
             borderRadius: 18,
             overflow: "hidden",
             border: "1px solid rgba(182,204,255,0.11)",
-            background: "linear-gradient(180deg, rgba(14,20,44,0.22), rgba(7,10,20,0.36))",
+            background: "linear-gradient(180deg, rgba(14,20,44,0.18), rgba(7,10,20,0.30))",
+            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.02)",
           }}
         >
-          <div style={{ position: "absolute", left: 18, right: 18, bottom: 30, height: 185, borderRadius: 14, border: "1px solid rgba(181,202,255,0.20)", background: "linear-gradient(180deg, rgba(9,13,24,0.22), rgba(9,13,24,0.04))" }} />
-          <div style={{ position: "absolute", left: "11%", top: "12%", width: "58%", height: "52%", borderRadius: 14, border: "1px solid rgba(181,202,255,0.18)", background: "rgba(10,16,30,0.18)" }} />
+          <div style={{ position: "absolute", left: 18, right: 18, bottom: 30, height: 185, borderRadius: 14, border: "1px solid rgba(181,202,255,0.20)", background: "linear-gradient(180deg, rgba(9,13,24,0.16), rgba(9,13,24,0.03))" }} />
+          <div style={{ position: "absolute", left: "11%", top: "12%", width: "58%", height: "52%", borderRadius: 14, border: "1px solid rgba(181,202,255,0.18)", background: "rgba(10,16,30,0.10)" }} />
 
           <Hotspot title="Plan" onClick={() => onOpenPanel("plan")} style={{ left: "12%", top: "13%", width: "56%", height: "50%" }} />
           <Hotspot title="Suggestion" onClick={() => onOpenPanel("suggestion")} style={{ left: "31%", top: "69%", width: 90, height: 76 }} />
@@ -258,8 +309,140 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
   );
 }
 
-function LeafBadge({ color }) {
-  return <span style={{ width: 24, height: 16, borderRadius: 10, background: `radial-gradient(circle at 30% 30%, ${color}, rgba(34,68,34,0.96))`, boxShadow: "inset 0 0 8px rgba(255,255,255,0.06)" }} />;
+function FloatingWindow({ win, isActive, onFocus, onClose, onMinimize, onMove, onResize, children }) {
+  const dragRef = useRef(null);
+  const resizeRef = useRef(null);
+
+  function startDrag(e) {
+    if (e.target.closest("button")) return;
+    e.preventDefault();
+    onFocus(win.id);
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const baseX = win.x;
+    const baseY = win.y;
+
+    function move(ev) {
+      onMove(win.id, {
+        x: baseX + (ev.clientX - startX),
+        y: baseY + (ev.clientY - startY),
+      });
+    }
+
+    function up() {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    }
+
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  }
+
+  function startResize(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    onFocus(win.id);
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const baseW = win.width;
+    const baseH = win.height;
+
+    function move(ev) {
+      onResize(win.id, {
+        width: Math.max(320, baseW + (ev.clientX - startX)),
+        height: Math.max(220, baseH + (ev.clientY - startY)),
+      });
+    }
+
+    function up() {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    }
+
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98, y: 8 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.98, y: 10 }}
+      transition={{ duration: 0.18 }}
+      onMouseDown={() => onFocus(win.id)}
+      style={{
+        position: "fixed",
+        left: win.x,
+        top: win.y,
+        width: win.width,
+        height: win.minimized ? 54 : win.height,
+        zIndex: isActive ? 90 : 70,
+        ...shell({
+          overflow: "hidden",
+          boxShadow: isActive
+            ? "0 28px 90px rgba(0,0,0,0.42), 0 0 36px rgba(96,120,255,0.10), inset 0 1px 0 rgba(255,255,255,0.06)"
+            : "0 18px 60px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.04)",
+        }),
+      }}
+    >
+      <div
+        ref={dragRef}
+        onMouseDown={startDrag}
+        style={{
+          height: 54,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          padding: "0 12px 0 14px",
+          borderBottom: win.minimized ? "none" : "1px solid rgba(255,255,255,0.06)",
+          cursor: "grab",
+          background: "linear-gradient(180deg, rgba(18,24,50,0.92), rgba(9,12,24,0.92))",
+        }}
+      >
+        <div style={{ ...titleCaps(13), letterSpacing: 2.4 }}>{win.title}</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => onMinimize(win.id)} style={miniButtonStyle()}><Minus size={15} /></button>
+          <button style={miniButtonStyle()}><Maximize2 size={14} /></button>
+          <button onClick={() => onClose(win.id)} style={miniButtonStyle()}><X size={15} /></button>
+        </div>
+      </div>
+
+      {!win.minimized ? (
+        <>
+          <div style={{ height: `calc(100% - 54px)`, overflow: "auto", padding: 14 }}>{children}</div>
+          <div
+            ref={resizeRef}
+            onMouseDown={startResize}
+            style={{
+              position: "absolute",
+              right: 6,
+              bottom: 6,
+              width: 18,
+              height: 18,
+              cursor: "nwse-resize",
+              background: "linear-gradient(135deg, transparent 45%, rgba(255,255,255,0.28) 45%, rgba(255,255,255,0.28) 55%, transparent 55%)",
+              opacity: 0.8,
+            }}
+          />
+        </>
+      ) : null}
+    </motion.div>
+  );
+}
+
+function miniButtonStyle() {
+  return {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    border: "1px solid rgba(182,204,255,0.10)",
+    background: "linear-gradient(180deg, rgba(23,30,64,0.74), rgba(9,12,25,0.92))",
+    color: "#eef2ff",
+    cursor: "pointer",
+    display: "grid",
+    placeItems: "center",
+  };
 }
 
 function CreateCaseModal({ openAt, onClose, onSave }) {
@@ -306,60 +489,84 @@ function CreateCaseModal({ openAt, onClose, onSave }) {
   );
 }
 
-function SidePanel({ mode, cases, onClose }) {
-  if (!mode) return null;
-
+function renderWindowContent(mode, cases) {
   const texts = {
-    zone: { title: "Zone actuelle", body: "Lecture de la zone sélectionnée. Ici on branchera plus tard les vraies actions contextuelles." },
-    plan: { title: "Plan du jardin", body: "Espace dédié au plan. On le détaillera ensuite avec tes vrais placements, cases et outils." },
-    suggestion: { title: "IA Suggestion", body: "Déplacer 3 pots vers la zone Est et garder la zone chaude pour les piments." },
-    today: { title: "Aujourd’hui", body: "Tailler les fraises, surveiller l’humidité du matin et vérifier la lumière des semis prioritaires." },
-    status: { title: "Statut", body: `Enregistré • ${cases.length} case(s) • restauration locale active.` },
-    pots: { title: "Ajouter des pots", body: "Panneau secondaire inspiré du mobile, ouvert depuis l’accueil et non affiché en permanence." },
+    zone: "Lecture de la zone sélectionnée. Ici on branchera plus tard les vraies actions contextuelles.",
+    plan: "Espace dédié au plan. On le détaillera ensuite avec tes vrais placements, cases et outils.",
+    suggestion: "Déplacer 3 pots vers la zone Est et garder la zone chaude pour les piments.",
+    today: "Tailler les fraises, surveiller l’humidité du matin et vérifier la lumière des semis prioritaires.",
+    status: `Enregistré • ${cases.length} case(s) • restauration locale active.`,
   };
 
-  const info = texts[mode] || texts.status;
+  if (mode === "pots") {
+    return (
+      <div style={{ display: "grid", gap: 14 }}>
+        <div style={soft({ padding: 18 })}>
+          <div style={{ ...titleCaps(15), marginBottom: 12 }}>Ajouter des pots</div>
+          <div style={{ color: "#eef2ff", fontSize: 14, lineHeight: 1.86 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <span>Nombre de pots:</span>
+              <div style={{ display: "flex", gap: 8 }}>{[1, 3, 5].map((n) => <span key={n} style={{ ...soft({ padding: "6px 10px", borderRadius: 10, minWidth: 18, textAlign: "center" }), fontWeight: 800 }}>{n}</span>)}</div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginTop: 8 }}>
+              <span>Diamètre du pot</span>
+              <div style={{ display: "flex", gap: 8 }}>{["20 cm", "30 cm", "40 cm"].map((d) => <span key={d} style={{ ...soft({ padding: "6px 8px", borderRadius: 10 }), fontWeight: 800, fontSize: 12 }}>{d}</span>)}</div>
+            </div>
+            <div style={{ marginTop: 10, textAlign: "center" }}>Suggestion : Planter du Basilic</div>
+          </div>
+        </div>
+        <button style={{ width: "100%", height: 48, borderRadius: 14, border: "1px solid rgba(138,160,255,0.26)", background: "linear-gradient(180deg, rgba(86,100,190,0.90), rgba(35,42,95,0.95))", color: "#fff8ef", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>Créer les pots</button>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 55, background: "rgba(3,6,14,0.36)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", display: "flex", justifyContent: "flex-end" }}>
-      <motion.div initial={{ x: 420, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 420, opacity: 0 }} transition={{ duration: 0.22 }} style={{ width: 410, maxWidth: "100%", padding: 18, display: "flex", alignItems: "center" }}>
-        <div style={{ ...shell({ width: "100%", padding: 18, minHeight: 640, display: "flex", flexDirection: "column" }) }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <div style={titleCaps(18)}>{info.title}</div>
-            <button onClick={onClose} style={{ width: 38, height: 38, borderRadius: 12, border: "1px solid rgba(182,204,255,0.10)", background: "linear-gradient(180deg, rgba(23,30,64,0.74), rgba(9,12,25,0.92))", color: "#eef2ff", cursor: "pointer" }}><X size={18} /></button>
-          </div>
-          <div style={{ ...soft({ padding: 18, marginBottom: 14 }) }}>
-            <div style={{ ...titleCaps(15), marginBottom: 12 }}>{mode === "pots" ? "Ajouter des pots" : "Détail"}</div>
-            {mode === "pots" ? (
-              <div style={{ color: "#eef2ff", fontSize: 14, lineHeight: 1.86 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                  <span>Nombre de pots:</span>
-                  <div style={{ display: "flex", gap: 8 }}>{[1, 3, 5].map((n) => <span key={n} style={{ ...soft({ padding: "6px 10px", borderRadius: 10, minWidth: 18, textAlign: "center" }), fontWeight: 800 }}>{n}</span>)}</div>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginTop: 8 }}>
-                  <span>Diamètre du pot</span>
-                  <div style={{ display: "flex", gap: 8 }}>{["20 cm", "30 cm", "40 cm"].map((d) => <span key={d} style={{ ...soft({ padding: "6px 8px", borderRadius: 10 }), fontWeight: 800, fontSize: 12 }}>{d}</span>)}</div>
-                </div>
-                <div style={{ marginTop: 10, textAlign: "center" }}>Suggestion : Planter du Basilic</div>
-              </div>
-            ) : (
-              <div style={{ color: "#eef2ff", lineHeight: 1.7 }}>{info.body}</div>
-            )}
-          </div>
-          <button style={{ width: "100%", height: 48, marginTop: "auto", borderRadius: 14, border: "1px solid rgba(138,160,255,0.26)", background: "linear-gradient(180deg, rgba(86,100,190,0.90), rgba(35,42,95,0.95))", color: "#fff8ef", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>
-            {mode === "pots" ? "Créer les pots" : "Continuer"}
-          </button>
+    <div style={{ display: "grid", gap: 14 }}>
+      <div style={soft({ padding: 18 })}>
+        <div style={{ color: "#eef2ff", lineHeight: 1.72 }}>{texts[mode] || texts.status}</div>
+      </div>
+      <div style={soft({ padding: 14, maxHeight: 220, overflow: "auto" })}>
+        <div style={{ ...titleCaps(14), marginBottom: 10 }}>Cases enregistrées</div>
+        <div style={{ display: "grid", gap: 8 }}>
+          {cases.map((c) => (
+            <div key={c.id} style={{ display: "grid", gap: 2, padding: "8px 10px", borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+              <strong style={{ color: "#eef2ff", fontSize: 14 }}>{c.name}</strong>
+              <span style={{ color: "rgba(214,222,255,0.62)", fontSize: 13 }}>{c.crop} · {c.zone}</span>
+            </div>
+          ))}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
+}
+
+function createWindow(mode, existingCount) {
+  const titleMap = {
+    zone: "Zone actuelle",
+    plan: "Plan du jardin",
+    suggestion: "IA Suggestion",
+    today: "Aujourd’hui",
+    status: "Statut",
+    pots: "Ajouter des pots",
+  };
+  return {
+    id: crypto.randomUUID(),
+    mode,
+    title: titleMap[mode] || "Fenêtre",
+    x: 220 + existingCount * 26,
+    y: 120 + existingCount * 22,
+    width: mode === "pots" ? 430 : 420,
+    height: mode === "pots" ? 380 : 340,
+    minimized: false,
+  };
 }
 
 export default function App() {
   const [cases, setCases] = useLocalStorageState(STORAGE_KEY, initialCases);
   const [createAt, setCreateAt] = useState(null);
-  const [panelMode, setPanelMode] = useState(null);
   const [showUi, setShowUi] = useState(false);
+  const [windows, setWindows] = useState([]);
+  const [activeId, setActiveId] = useState(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setShowUi(true), 1800);
@@ -371,22 +578,75 @@ export default function App() {
     setCreateAt(null);
   }
 
+  function openWindow(mode) {
+    setWindows((current) => {
+      const next = [...current, createWindow(mode, current.length)];
+      setActiveId(next[next.length - 1].id);
+      return next;
+    });
+  }
+
+  function closeWindow(id) {
+    setWindows((current) => current.filter((w) => w.id !== id));
+    setActiveId((prev) => (prev === id ? null : prev));
+  }
+
+  function minimizeWindow(id) {
+    setWindows((current) => current.map((w) => (w.id === id ? { ...w, minimized: !w.minimized } : w)));
+    setActiveId(id);
+  }
+
+  function moveWindow(id, pos) {
+    setWindows((current) => current.map((w) => (w.id === id ? { ...w, ...pos } : w)));
+  }
+
+  function resizeWindow(id, size) {
+    setWindows((current) => current.map((w) => (w.id === id ? { ...w, ...size } : w)));
+  }
+
+  function focusWindow(id) {
+    setActiveId(id);
+    setWindows((current) => {
+      const target = current.find((w) => w.id === id);
+      if (!target) return current;
+      return [...current.filter((w) => w.id !== id), target];
+    });
+  }
+
   return (
     <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden", color: "#eef2ff", fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${REF_BG})`, backgroundSize: "cover", backgroundPosition: "center" }} />
-      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(4,8,18,0.12), rgba(4,8,18,0.30))" }} />
+      <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${REF_BG})`, backgroundSize: "cover", backgroundPosition: "center", transform: "scale(1.04)", filter: "saturate(1.06) contrast(1.04) brightness(0.95)" }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(4,8,18,0.08), rgba(4,8,18,0.28))" }} />
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, rgba(255,255,255,0.03), transparent 45%)" }} />
+      <AmbientGlow />
       <Fireflies />
 
       <AnimatePresence>
         {showUi ? (
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} style={{ maxWidth: 980, margin: "0 auto", padding: "38px 24px 28px", position: "relative", zIndex: 1 }}>
-            <HomeOverlay onOpenPanel={setPanelMode} onOpenCreate={setCreateAt} />
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} style={{ maxWidth: 980, margin: "0 auto", padding: "38px 24px 28px", position: "relative", zIndex: 20 }}>
+            <HomeOverlay onOpenPanel={openWindow} onOpenCreate={setCreateAt} />
           </motion.div>
         ) : null}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {windows.map((win) => (
+          <FloatingWindow
+            key={win.id}
+            win={win}
+            isActive={activeId === win.id}
+            onFocus={focusWindow}
+            onClose={closeWindow}
+            onMinimize={minimizeWindow}
+            onMove={moveWindow}
+            onResize={resizeWindow}
+          >
+            {renderWindowContent(win.mode, cases)}
+          </FloatingWindow>
+        ))}
+      </AnimatePresence>
+
       <AnimatePresence>{createAt ? <CreateCaseModal openAt={createAt} onClose={() => setCreateAt(null)} onSave={saveCase} /> : null}</AnimatePresence>
-      <AnimatePresence>{panelMode ? <SidePanel mode={panelMode} cases={cases} onClose={() => setPanelMode(null)} /> : null}</AnimatePresence>
     </div>
   );
 }
