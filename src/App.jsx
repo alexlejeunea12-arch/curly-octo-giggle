@@ -708,8 +708,9 @@ export default function App() {
         }}
       />
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(4,8,18,0.02), rgba(4,8,18,0.14))" }} />
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, rgba(255,255,255,0.05), transparent 48%)" }} />
-      <      <HouseLights />
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, rgba(255,255,255,0.035), transparent 46%)" }} />
+      <AmbientGlow />
+      <HouseLights />
       <Fireflies />
 
       <AnimatePresence>
