@@ -1,10 +1,11 @@
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-// Repère 1/6 — constantes, helpers, catalogue
+// Repère 1/6 — constantes, helpers, catalogue, gabarits
 const CITY = "Saint-Germain-lès-Arpajon (91180)";
 const LAT = 48.616;
 const LON = 2.258;
-const STORAGE = "potager_mobile_v2_actions";
+const STORAGE = "potager_mobile_v21_guided";
 
 const plants = {
   vide: { name: "Vide", icon: "⬜", color: "#f3f4f6", water: 0, yield: 0, sunNeed: 0, tasks: {} },
@@ -31,7 +32,7 @@ const zoneMeta = {
 
 const mobileTabs = [
   { key: "plan", label: "Plan", icon: "🗺️" },
-  { key: "settings", label: "Réglages", icon: "⚙️" },
+  { key: "assistant", label: "Assistant", icon: "🧭" },
   { key: "reminders", label: "Rappels", icon: "⏰" },
   { key: "cell", label: "Case", icon: "🧩" },
 ];
@@ -43,6 +44,24 @@ const actionCatalog = {
   tuteurage: { label: "Tuteurage", icon: "🪵" },
   recolte: { label: "Récolte", icon: "🧺" },
 };
+
+const sideOptions = [
+  { key: "top", label: "Haut du plan" },
+  { key: "right", label: "Droite du plan" },
+  { key: "bottom", label: "Bas du plan" },
+  { key: "left", label: "Gauche du plan" },
+];
+
+const planPresets = [
+  { key: "2x3", label: "2 × 3", rows: 2, cols: 3, description: "Mini plan simple", layout: "blank" },
+  { key: "3x3", label: "3 × 3", rows: 3, cols: 3, description: "Carré classique", layout: "blank" },
+  { key: "3x4", label: "3 × 4", rows: 3, cols: 4, description: "Bon équilibre", layout: "blank" },
+  { key: "4x4", label: "4 × 4", rows: 4, cols: 4, description: "Plan modulable", layout: "blank" },
+  { key: "4x5", label: "4 × 5", rows: 4, cols: 5, description: "Grand potager", layout: "blank" },
+  { key: "patio-3x4", label: "Terrasse 3 × 4", rows: 3, cols: 4, description: "Dernière rangée terrasse", layout: "patio" },
+  { key: "serre-3x4", label: "Serre 3 × 4", rows: 3, cols: 4, description: "Serre + allée centrale", layout: "greenhouse" },
+  { key: "long-2x5", label: "Longueur 2 × 5", rows: 2, cols: 5, description: "Jardin en bande", layout: "long" },
+];
 
 function safeRead(key, fallback) {
   try {
@@ -87,24 +106,6 @@ function addDaysISO(baseDate, offsetDays) {
   return d.toISOString();
 }
 
-function getReminderStatus(reminder) {
-  if (reminder.done) return "done";
-  const startToday = new Date();
-  startToday.setHours(0, 0, 0, 0);
-  const due = new Date(reminder.dueDate);
-  due.setHours(0, 0, 0, 0);
-  if (due.getTime() === startToday.getTime()) return "today";
-  if (due.getTime() < startToday.getTime()) return "late";
-  return "upcoming";
-}
-
-function reminderStatusMeta(status) {
-  if (status === "today") return { label: "À faire aujourd’hui", bg: "#fef3c7", border: "#f59e0b" };
-  if (status === "late") return { label: "En retard", bg: "#fee2e2", border: "#ef4444" };
-  if (status === "done") return { label: "Terminé", bg: "#dcfce7", border: "#22c55e" };
-  return { label: "À venir", bg: "#e0f2fe", border: "#38bdf8" };
-}
-
 function fieldStyle() {
   return {
     width: "100%",
@@ -122,7 +123,7 @@ function fieldStyle() {
 function areaStyle() {
   return {
     ...fieldStyle(),
-    minHeight: 90,
+    minHeight: 92,
     resize: "vertical",
     fontFamily: "Arial, sans-serif",
   };
@@ -204,6 +205,10 @@ function zoomText(value) {
   return "Très zoomé";
 }
 
+function sideLabel(sideKey) {
+  return sideOptions.find((opt) => opt.key === sideKey)?.label || "—";
+}
+
 function makeCell(label = "Nouvelle case", zoneType = "empty", extra = {}) {
   return {
     id: uid(),
@@ -213,21 +218,82 @@ function makeCell(label = "Nouvelle case", zoneType = "empty", extra = {}) {
     count: zoneType === "plant" ? 1 : 0,
     sunBase: 2,
     note: "",
+    exposureTag: "standard",
     ...extra,
   };
 }
 
-function defaultCells() {
-  return [
-    makeCell("Bande piments / poivrons", "plant", { plant: "piment", count: 4, sunBase: 3 }),
-    makeCell("Tomates fond gauche", "plant", { plant: "tomate", count: 3, sunBase: 3 }),
-    makeCell("Tomates fond droit", "plant", { plant: "tomateCerise", count: 3, sunBase: 3 }),
-    makeCell("Serre", "greenhouse", { sunBase: 3 }),
-    makeCell("Allée centrale", "path", { sunBase: 2 }),
-    makeCell("Salades / herbes", "plant", { plant: "salade", count: 6, sunBase: 2 }),
-    makeCell("Aromatiques", "plant", { plant: "persil", count: 4, sunBase: 2 }),
-    makeCell("Terrasse", "terrace", { sunBase: 3 }),
-  ];
+function buildGridCells(rows, cols, layout = "blank") {
+  const cells = [];
+  for (let r = 0; r < rows; r += 1) {
+    for (let c = 0; c < cols; c += 1) {
+      cells.push(makeCell(`Case ${r + 1}.${c + 1}`, "empty"));
+    }
+  }
+
+  if (layout === "patio") {
+    for (let c = 0; c < cols; c += 1) {
+      const idx = (rows - 1) * cols + c;
+      cells[idx] = { ...cells[idx], zoneType: "terrace", plant: "vide", count: 0, label: `Terrasse ${c + 1}` };
+    }
+  }
+
+  if (layout === "greenhouse") {
+    if (cells[0]) cells[0] = { ...cells[0], zoneType: "greenhouse", label: "Serre" };
+    const middleRow = Math.floor(rows / 2);
+    for (let c = 0; c < cols; c += 1) {
+      const idx = middleRow * cols + c;
+      cells[idx] = { ...cells[idx], zoneType: "path", label: `Allée ${c + 1}` };
+    }
+  }
+
+  if (layout === "long") {
+    const hotCells = [0, 1].filter((idx) => idx < cells.length);
+    hotCells.forEach((idx, i) => {
+      cells[idx] = { ...cells[idx], zoneType: "plant", plant: i === 0 ? "tomate" : "piment", count: 2, label: `Culture chaude ${i + 1}` };
+    });
+    if (cells.length > cols) {
+      cells[cols] = { ...cells[cols], zoneType: "path", label: "Passage" };
+    }
+  }
+
+  return cells;
+}
+
+function defaultPlanPreset() {
+  return planPresets.find((preset) => preset.key === "3x4") || planPresets[0];
+}
+
+function createPotager(name = "Nouveau potager") {
+  const preset = defaultPlanPreset();
+  const cells = buildGridCells(preset.rows, preset.cols, preset.layout);
+  return {
+    id: uid(),
+    name,
+    rows: preset.rows,
+    cols: preset.cols,
+    cells,
+    selectedId: cells[0]?.id || null,
+    quickPlant: "tomate",
+    orientation: "south",
+    sunMode: 2,
+    zoom: 100,
+    reminders: [],
+    actions: [],
+    mobileTab: "plan",
+    activePresetKey: preset.key,
+    assistantStep: "template",
+    diagnostic: {
+      source: "Manuel",
+      confidence: "À confirmer",
+      hotSide: "bottom",
+      shadowSide: "top",
+      windSide: "left",
+      notes: "",
+      photoName: "",
+      lastAppliedAt: "",
+    },
+  };
 }
 
 function buildReminderBlueprints(actionType, plantKey, quantity, zoneLabel) {
@@ -239,22 +305,14 @@ function buildReminderBlueprints(actionType, plantKey, quantity, zoneLabel) {
         offsetDays: 7,
         title: `Contrôler la levée de ${qtyText}`,
         averageDelay: "5 à 10 jours selon chaleur et humidité",
-        signs: [
-          "levée visible ou début de germination",
-          "substrat resté légèrement humide",
-          "pas de fonte des semis",
-        ],
+        signs: ["levée visible ou début de germination", "substrat resté légèrement humide", "pas de fonte des semis"],
         advice: `Vérifier la levée de ${plantName} dans ${zoneLabel}.`,
       },
       {
         offsetDays: 14,
-        title: `Vérifier homogénéité et éclaircissage`,
+        title: "Vérifier homogénéité et éclaircissage",
         averageDelay: "10 à 15 jours",
-        signs: [
-          "plantules régulières",
-          "premières vraies feuilles",
-          "densité pas trop forte",
-        ],
+        signs: ["plantules régulières", "premières vraies feuilles", "densité pas trop forte"],
         advice: "Éclaircir ou compléter si la levée est trop faible.",
       },
     ];
@@ -263,24 +321,16 @@ function buildReminderBlueprints(actionType, plantKey, quantity, zoneLabel) {
     return [
       {
         offsetDays: 3,
-        title: `Surveiller la reprise après repiquage`,
+        title: "Surveiller la reprise après repiquage",
         averageDelay: "2 à 4 jours pour une reprise initiale",
-        signs: [
-          "feuilles qui se redressent",
-          "tige stable",
-          "pas de flétrissement prolongé",
-        ],
+        signs: ["feuilles qui se redressent", "tige stable", "pas de flétrissement prolongé"],
         advice: `Contrôler ${plantName} dans ${zoneLabel}, arroser seulement si le substrat sèche.`,
       },
       {
         offsetDays: 7,
-        title: `Confirmer la reprise`,
+        title: "Confirmer la reprise",
         averageDelay: "5 à 8 jours",
-        signs: [
-          "nouvelle pousse au centre",
-          "croissance qui repart",
-          "couleur du feuillage correcte",
-        ],
+        signs: ["nouvelle pousse au centre", "croissance qui repart", "couleur du feuillage correcte"],
         advice: "Surveiller le stress, la lumière et l’espacement.",
       },
     ];
@@ -289,35 +339,23 @@ function buildReminderBlueprints(actionType, plantKey, quantity, zoneLabel) {
     return [
       {
         offsetDays: 2,
-        title: `Vérifier l’arrosage de reprise`,
+        title: "Vérifier l’arrosage de reprise",
         averageDelay: "24 à 72 h",
-        signs: [
-          "sol légèrement frais",
-          "pas d’affaissement brutal",
-          "feuillage pas brûlé",
-        ],
+        signs: ["sol légèrement frais", "pas d’affaissement brutal", "feuillage pas brûlé"],
         advice: "Arroser si le sol sèche trop vite, surtout avec vent ou chaleur.",
       },
       {
         offsetDays: 7,
-        title: `Contrôler la reprise visible`,
+        title: "Contrôler la reprise visible",
         averageDelay: "5 à 8 jours",
-        signs: [
-          "nouvelle pousse",
-          "tige plus ferme",
-          "moins de stress en journée",
-        ],
+        signs: ["nouvelle pousse", "tige plus ferme", "moins de stress en journée"],
         advice: `Observer ${plantName} dans ${zoneLabel} et protéger si froid ou vent.`,
       },
       {
         offsetDays: 14,
-        title: `Valider l’installation durable`,
+        title: "Valider l’installation durable",
         averageDelay: "10 à 15 jours",
-        signs: [
-          "croissance active",
-          "feuillage plus dense",
-          "aucun stress prolongé",
-        ],
+        signs: ["croissance active", "feuillage plus dense", "aucun stress prolongé"],
         advice: "Adapter arrosage, paillage ou tuteurage.",
       },
     ];
@@ -326,13 +364,9 @@ function buildReminderBlueprints(actionType, plantKey, quantity, zoneLabel) {
     return [
       {
         offsetDays: 5,
-        title: `Vérifier la tenue du tuteurage`,
+        title: "Vérifier la tenue du tuteurage",
         averageDelay: "3 à 7 jours",
-        signs: [
-          "tige bien guidée",
-          "pas de lien trop serré",
-          "plant stable au vent",
-        ],
+        signs: ["tige bien guidée", "pas de lien trop serré", "plant stable au vent"],
         advice: "Resserrer ou repositionner les liens si besoin.",
       },
     ];
@@ -341,36 +375,14 @@ function buildReminderBlueprints(actionType, plantKey, quantity, zoneLabel) {
     return [
       {
         offsetDays: 4,
-        title: `Surveiller la prochaine vague de récolte`,
+        title: "Surveiller la prochaine vague de récolte",
         averageDelay: "3 à 7 jours selon météo",
-        signs: [
-          "nouvelles fleurs ou fruits",
-          "fruits qui se colorent",
-          "pas d’épuisement marqué",
-        ],
+        signs: ["nouvelles fleurs ou fruits", "fruits qui se colorent", "pas d’épuisement marqué"],
         advice: "Continuer l’entretien et noter le rendement.",
       },
     ];
   }
   return [];
-}
-
-function createPotager(name = "Nouveau potager") {
-  const cells = defaultCells();
-  return {
-    id: uid(),
-    name,
-    cells,
-    cols: 4,
-    selectedId: cells[0]?.id || null,
-    quickPlant: "tomate",
-    orientation: "south",
-    sunMode: 2,
-    zoom: 100,
-    reminders: [],
-    actions: [],
-    mobileTab: "plan",
-  };
 }
 
 function normalizeReminder(raw) {
@@ -407,39 +419,56 @@ function normalizeAction(raw) {
   };
 }
 
+function normalizeDiagnostic(raw) {
+  return {
+    source: raw?.source || "Manuel",
+    confidence: raw?.confidence || "À confirmer",
+    hotSide: ["top", "right", "bottom", "left"].includes(raw?.hotSide) ? raw.hotSide : "bottom",
+    shadowSide: ["top", "right", "bottom", "left"].includes(raw?.shadowSide) ? raw.shadowSide : "top",
+    windSide: ["top", "right", "bottom", "left"].includes(raw?.windSide) ? raw.windSide : "left",
+    notes: raw?.notes || "",
+    photoName: raw?.photoName || "",
+    lastAppliedAt: raw?.lastAppliedAt || "",
+  };
+}
+
 function normalizePotager(raw, index = 0) {
-  const cells = (Array.isArray(raw?.cells) && raw.cells.length ? raw.cells : defaultCells()).map(
-    (cell) => {
-      const zoneType = zoneMeta[cell?.zoneType] ? cell.zoneType : "empty";
-      return {
-        id: cell?.id || uid(),
-        label: cell?.label || "Nouvelle case",
-        zoneType,
-        plant: zoneType === "plant" ? (plants[cell?.plant] ? cell.plant : "tomate") : "vide",
-        count: zoneType === "plant" ? Math.max(0, Number(cell?.count || 0)) : 0,
-        sunBase: clamp(Number(cell?.sunBase || 0), 0, 3),
-        note: cell?.note || "",
-      };
-    }
-  );
+  const fallbackPreset = defaultPlanPreset();
+  const rows = clamp(Number(raw?.rows || fallbackPreset.rows), 1, 8);
+  const cols = clamp(Number(raw?.cols || fallbackPreset.cols), 1, 8);
+  const fallbackCells = buildGridCells(rows, cols, raw?.activePresetKey === "blank" ? "blank" : fallbackPreset.layout);
+
+  const cells = (Array.isArray(raw?.cells) && raw.cells.length ? raw.cells : fallbackCells).map((cell) => {
+    const zoneType = zoneMeta[cell?.zoneType] ? cell.zoneType : "empty";
+    return {
+      id: cell?.id || uid(),
+      label: cell?.label || "Nouvelle case",
+      zoneType,
+      plant: zoneType === "plant" ? (plants[cell?.plant] ? cell.plant : "tomate") : "vide",
+      count: zoneType === "plant" ? Math.max(0, Number(cell?.count || 0)) : 0,
+      sunBase: clamp(Number(cell?.sunBase || 0), 0, 3),
+      note: cell?.note || "",
+      exposureTag: cell?.exposureTag || "standard",
+    };
+  });
 
   return {
     id: raw?.id || uid(),
     name: raw?.name || `Potager ${index + 1}`,
+    rows,
+    cols,
     cells,
-    cols: clamp(Number(raw?.cols || 4), 1, 8),
-    selectedId: cells.some((cell) => cell.id === raw?.selectedId)
-      ? raw.selectedId
-      : cells[0]?.id || null,
+    selectedId: cells.some((cell) => cell.id === raw?.selectedId) ? raw.selectedId : cells[0]?.id || null,
     quickPlant: plants[raw?.quickPlant] ? raw.quickPlant : "tomate",
-    orientation: ["south", "north", "west", "east"].includes(raw?.orientation)
-      ? raw.orientation
-      : "south",
+    orientation: ["south", "north", "west", "east"].includes(raw?.orientation) ? raw.orientation : "south",
     sunMode: clamp(Number(raw?.sunMode || 2), 1, 3),
-    zoom: clamp(Number(raw?.zoom || 100), 60, 150),
+    zoom: clamp(Number(raw?.zoom || 100), 60, 160),
     reminders: Array.isArray(raw?.reminders) ? raw.reminders.map(normalizeReminder) : [],
     actions: Array.isArray(raw?.actions) ? raw.actions.map(normalizeAction) : [],
     mobileTab: mobileTabs.some((tab) => tab.key === raw?.mobileTab) ? raw.mobileTab : "plan",
+    activePresetKey: raw?.activePresetKey || fallbackPreset.key,
+    assistantStep: ["template", "diagnostic", "placement", "followup"].includes(raw?.assistantStep) ? raw.assistantStep : "template",
+    diagnostic: normalizeDiagnostic(raw?.diagnostic),
   };
 }
 
@@ -454,6 +483,24 @@ function getInitialData() {
     ? saved.activePotagerId
     : potagers[0].id;
   return { potagers, activePotagerId };
+}
+
+function getReminderStatus(reminder) {
+  if (reminder.done) return "done";
+  const startToday = new Date();
+  startToday.setHours(0, 0, 0, 0);
+  const due = new Date(reminder.dueDate);
+  due.setHours(0, 0, 0, 0);
+  if (due.getTime() === startToday.getTime()) return "today";
+  if (due.getTime() < startToday.getTime()) return "late";
+  return "upcoming";
+}
+
+function reminderStatusMeta(status) {
+  if (status === "today") return { label: "À faire aujourd’hui", bg: "#fef3c7", border: "#f59e0b" };
+  if (status === "late") return { label: "En retard", bg: "#fee2e2", border: "#ef4444" };
+  if (status === "done") return { label: "Terminé", bg: "#dcfce7", border: "#22c55e" };
+  return { label: "À venir", bg: "#e0f2fe", border: "#38bdf8" };
 }
 
 function Card({ title, right, children, style = {} }) {
@@ -485,6 +532,26 @@ function StatCard({ icon, label, value, subtitle }) {
       <div style={{ fontWeight: 800, fontSize: 30, marginTop: 6 }}>{value}</div>
       <div style={{ color: "#6b7280", fontSize: 13, marginTop: 4 }}>{subtitle}</div>
     </div>
+  );
+}
+
+function PresetCard({ preset, active, onApply }) {
+  return (
+    <button
+      onClick={() => onApply(preset)}
+      style={{
+        textAlign: "left",
+        border: active ? "2px solid #111827" : "1px solid #d1d5db",
+        background: active ? "#eef2ff" : "#fff",
+        borderRadius: 14,
+        padding: 12,
+        cursor: "pointer",
+      }}
+    >
+      <div style={{ fontWeight: 800 }}>{preset.label}</div>
+      <div style={{ marginTop: 4, color: "#4b5563", fontSize: 13 }}>{preset.description}</div>
+      <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>{preset.rows} lignes • {preset.cols} colonnes</div>
+    </button>
   );
 }
 
@@ -534,9 +601,7 @@ function ReminderCard({ reminder, onToggleDone, onDelete }) {
       <div>
         <div style={{ fontWeight: 700, marginBottom: 6 }}>Signes à observer</div>
         <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.5 }}>
-          {reminder.signs.map((sign, index) => (
-            <li key={`${reminder.id}-sign-${index}`}>{sign}</li>
-          ))}
+          {reminder.signs.map((sign, index) => <li key={`${reminder.id}-sign-${index}`}>{sign}</li>)}
         </ul>
       </div>
 
@@ -588,7 +653,7 @@ function ActionCard({ action }) {
   );
 }
 
-// Repère 2/6 — composant principal et états
+// Repère 2/6 — composant principal, états, diagnostic assisté
 export default function App() {
   const initial = getInitialData();
   const [potagers, setPotagers] = useState(initial.potagers);
@@ -602,7 +667,9 @@ export default function App() {
     date: todayInputValue(),
     note: "",
   });
+  const [photoPreview, setPhotoPreview] = useState("");
   const importRef = useRef(null);
+  const photoRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem(STORAGE, JSON.stringify({ potagers, activePotagerId }));
@@ -615,9 +682,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current_weather=true`
-    )
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current_weather=true`)
       .then((res) => res.json())
       .then((data) => {
         if (data?.current_weather) {
@@ -643,15 +708,15 @@ export default function App() {
   }, [potagers, activePotagerId]);
 
   const isMobile = screenWidth <= 920;
-  const isVerySmall = screenWidth <= 560;
 
   const activePotager = useMemo(
     () => potagers.find((potager) => potager.id === activePotagerId) || potagers[0] || null,
     [potagers, activePotagerId]
   );
 
-  const cells = activePotager?.cells || [];
+  const rows = activePotager?.rows || 3;
   const cols = activePotager?.cols || 4;
+  const cells = activePotager?.cells || [];
   const selectedId = activePotager?.selectedId || null;
   const quickPlant = activePotager?.quickPlant || "tomate";
   const orientation = activePotager?.orientation || "south";
@@ -660,6 +725,9 @@ export default function App() {
   const reminders = activePotager?.reminders || [];
   const actions = activePotager?.actions || [];
   const mobileTab = activePotager?.mobileTab || "plan";
+  const activePresetKey = activePotager?.activePresetKey || defaultPlanPreset().key;
+  const assistantStep = activePotager?.assistantStep || "template";
+  const diagnostic = activePotager?.diagnostic || normalizeDiagnostic();
 
   useEffect(() => {
     setActionDraft((prev) => ({
@@ -676,23 +744,26 @@ export default function App() {
       prev.map((potager) => {
         if (potager.id !== activePotager.id) return potager;
         const next = updater(potager);
-        const nextCells = Array.isArray(next.cells) && next.cells.length ? next.cells : [makeCell()];
+        const nextRows = clamp(Number(next.rows || 1), 1, 8);
+        const nextCols = clamp(Number(next.cols || 1), 1, 8);
+        const fallbackCells = buildGridCells(nextRows, nextCols, "blank");
+        const nextCells = Array.isArray(next.cells) && next.cells.length ? next.cells : fallbackCells;
         return {
           ...next,
+          rows: nextRows,
+          cols: nextCols,
           cells: nextCells,
-          cols: clamp(Number(next.cols || 4), 1, 8),
-          selectedId: nextCells.some((cell) => cell.id === next.selectedId)
-            ? next.selectedId
-            : nextCells[0]?.id || null,
+          selectedId: nextCells.some((cell) => cell.id === next.selectedId) ? next.selectedId : nextCells[0]?.id || null,
           quickPlant: plants[next.quickPlant] ? next.quickPlant : "tomate",
-          orientation: ["south", "north", "west", "east"].includes(next.orientation)
-            ? next.orientation
-            : "south",
+          orientation: ["south", "north", "west", "east"].includes(next.orientation) ? next.orientation : "south",
           sunMode: clamp(Number(next.sunMode || 2), 1, 3),
-          zoom: clamp(Number(next.zoom || 100), 60, 150),
+          zoom: clamp(Number(next.zoom || 100), 60, 160),
           reminders: Array.isArray(next.reminders) ? next.reminders.map(normalizeReminder) : [],
           actions: Array.isArray(next.actions) ? next.actions.map(normalizeAction) : [],
           mobileTab: mobileTabs.some((tab) => tab.key === next.mobileTab) ? next.mobileTab : "plan",
+          activePresetKey: next.activePresetKey || defaultPlanPreset().key,
+          assistantStep: ["template", "diagnostic", "placement", "followup"].includes(next.assistantStep) ? next.assistantStep : "template",
+          diagnostic: normalizeDiagnostic(next.diagnostic),
         };
       })
     );
@@ -712,6 +783,7 @@ export default function App() {
           count: zoneType === "plant" ? Math.max(0, Number(next.count || 0)) : 0,
           sunBase: clamp(Number(next.sunBase || 0), 0, 3),
           note: next.note || "",
+          exposureTag: next.exposureTag || "standard",
         };
       }),
     }));
@@ -720,6 +792,11 @@ export default function App() {
   const activeCell = useMemo(
     () => cells.find((cell) => cell.id === selectedId) || null,
     [cells, selectedId]
+  );
+
+  const cellsWithPosition = useMemo(
+    () => cells.map((cell, index) => ({ ...cell, row: Math.floor(index / cols), col: index % cols, index })),
+    [cells, cols]
   );
 
   const sunOf = (cell) => clamp(Number(cell.sunBase || 0) + sunMode - 2, 0, 3);
@@ -733,40 +810,130 @@ export default function App() {
       : zoneMeta[cell.zoneType]?.icon || "⬜";
 
   const cellMinWidth = useMemo(() => {
-    if (isMobile) {
-      if (zoom <= 80) return 120;
-      if (zoom <= 100) return 150;
-      if (zoom <= 120) return 175;
-      return 195;
-    }
-    if (zoom <= 80) return 125;
-    if (zoom <= 100) return 150;
-    if (zoom <= 125) return 185;
-    return 210;
+    if (zoom <= 80) return isMobile ? 100 : 120;
+    if (zoom <= 100) return isMobile ? 118 : 145;
+    if (zoom <= 125) return isMobile ? 135 : 170;
+    return isMobile ? 155 : 190;
   }, [zoom, isMobile]);
 
   const cellMinHeight = useMemo(() => {
-    if (isMobile) {
-      if (zoom <= 80) return 150;
-      if (zoom <= 100) return 178;
-      if (zoom <= 120) return 204;
-      return 225;
-    }
-    if (zoom <= 80) return 145;
-    if (zoom <= 100) return 185;
-    if (zoom <= 125) return 225;
-    return 250;
+    if (zoom <= 80) return isMobile ? 125 : 145;
+    if (zoom <= 100) return isMobile ? 145 : 175;
+    if (zoom <= 125) return isMobile ? 165 : 205;
+    return isMobile ? 185 : 230;
   }, [zoom, isMobile]);
 
-  const iconSize = zoom <= 80 ? 28 : zoom <= 100 ? 38 : zoom <= 125 ? 46 : 54;
-  const titleSize = zoom <= 80 ? 13 : zoom <= 100 ? 15 : zoom <= 125 ? 17 : 18;
-  const textSize = zoom <= 80 ? 12 : zoom <= 100 ? 14 : zoom <= 125 ? 15 : 16;
-  const mobileGridCols = isVerySmall ? 1 : zoom <= 85 ? 2 : 1;
-  const planGridCols = isMobile ? mobileGridCols : cols;
+  const iconSize = zoom <= 80 ? 26 : zoom <= 100 ? 34 : zoom <= 125 ? 42 : 50;
+  const titleSize = zoom <= 80 ? 12 : zoom <= 100 ? 14 : zoom <= 125 ? 15 : 16;
+  const textSize = zoom <= 80 ? 11 : zoom <= 100 ? 13 : zoom <= 125 ? 14 : 15;
 
-  // Repère 3/6 — actions potagers, navigation, import/export, rappels
   function setMobileTab(tabKey) {
     updateActivePotager((potager) => ({ ...potager, mobileTab: tabKey }));
+  }
+
+  function setAssistantStep(stepKey) {
+    updateActivePotager((potager) => ({ ...potager, assistantStep: stepKey }));
+  }
+
+  function updateDiagnostic(patch) {
+    updateActivePotager((potager) => ({
+      ...potager,
+      diagnostic: { ...potager.diagnostic, ...patch },
+    }));
+  }
+
+  function photoInputClick() {
+    photoRef.current?.click();
+  }
+
+  function handlePhotoUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setPhotoPreview(String(reader.result || ""));
+    reader.readAsDataURL(file);
+    updateDiagnostic({ photoName: file.name, source: "Photo assistée" });
+    event.target.value = "";
+  }
+
+  function clearPhotoPreview() {
+    setPhotoPreview("");
+    updateDiagnostic({ photoName: "", source: "Manuel" });
+  }
+
+  function applyPreset(preset) {
+    const nextCells = buildGridCells(preset.rows, preset.cols, preset.layout);
+    updateActivePotager((potager) => ({
+      ...potager,
+      rows: preset.rows,
+      cols: preset.cols,
+      cells: nextCells,
+      selectedId: nextCells[0]?.id || null,
+      activePresetKey: preset.key,
+      assistantStep: "diagnostic",
+      reminders: [],
+      actions: [],
+    }));
+    if (isMobile) setMobileTab("assistant");
+  }
+
+  function regenerateLabels() {
+    updateActivePotager((potager) => ({
+      ...potager,
+      cells: potager.cells.map((cell, index) => ({
+        ...cell,
+        label: `Case ${Math.floor(index / potager.cols) + 1}.${(index % potager.cols) + 1}`,
+      })),
+    }));
+  }
+
+  function scoreFromSide(row, col, side, totalRows, totalCols) {
+    if (side === "top") return totalRows <= 1 ? 1 : 1 - row / (totalRows - 1);
+    if (side === "bottom") return totalRows <= 1 ? 1 : row / (totalRows - 1);
+    if (side === "left") return totalCols <= 1 ? 1 : 1 - col / (totalCols - 1);
+    return totalCols <= 1 ? 1 : col / (totalCols - 1);
+  }
+
+  function autoMapExposure() {
+    updateActivePotager((potager) => {
+      const nextCells = potager.cells.map((cell, index) => {
+        const row = Math.floor(index / potager.cols);
+        const col = index % potager.cols;
+        const hotScore = scoreFromSide(row, col, potager.diagnostic.hotSide, potager.rows, potager.cols);
+        const shadowScore = scoreFromSide(row, col, potager.diagnostic.shadowSide, potager.rows, potager.cols);
+        let sunBase = Math.round(clamp(1 + hotScore * 2 - shadowScore * 1.6, 0, 3));
+        if (cell.zoneType === "tree" || cell.zoneType === "wall") sunBase = Math.min(sunBase, 1);
+        if (cell.zoneType === "greenhouse") sunBase = Math.max(sunBase, 2);
+        let exposureTag = "standard";
+        if (sunBase >= 3) exposureTag = "chaud";
+        else if (sunBase <= 1) exposureTag = "frais";
+        return { ...cell, sunBase, exposureTag };
+      });
+
+      return {
+        ...potager,
+        cells: nextCells,
+        assistantStep: "placement",
+        diagnostic: { ...potager.diagnostic, lastAppliedAt: new Date().toISOString() },
+      };
+    });
+  }
+
+  function applyOrientationSuggestion() {
+    let suggestedOrientation = orientation;
+    if (diagnostic.hotSide === "bottom") suggestedOrientation = "south";
+    if (diagnostic.hotSide === "top") suggestedOrientation = "north";
+    if (diagnostic.hotSide === "left") suggestedOrientation = "west";
+    if (diagnostic.hotSide === "right") suggestedOrientation = "east";
+
+    updateActivePotager((potager) => ({
+      ...potager,
+      orientation: suggestedOrientation,
+      diagnostic: {
+        ...potager.diagnostic,
+        confidence: potager.diagnostic.photoName ? "Moyenne, à confirmer" : "Manuelle confirmée",
+      },
+    }));
   }
 
   function createNewPotager() {
@@ -807,17 +974,7 @@ export default function App() {
   function exportActivePotager() {
     if (!activePotager) return;
     const blob = new Blob(
-      [
-        JSON.stringify(
-          {
-            type: "assistant-potager-single-v2",
-            potager: activePotager,
-            exportedAt: new Date().toISOString(),
-          },
-          null,
-          2
-        ),
-      ],
+      [JSON.stringify({ type: "assistant-potager-single", potager: activePotager, exportedAt: new Date().toISOString() }, null, 2)],
       { type: "application/json" }
     );
     const url = URL.createObjectURL(blob);
@@ -830,24 +987,13 @@ export default function App() {
 
   function exportAllPotagers() {
     const blob = new Blob(
-      [
-        JSON.stringify(
-          {
-            type: "assistant-potager-all-v2",
-            potagers,
-            activePotagerId,
-            exportedAt: new Date().toISOString(),
-          },
-          null,
-          2
-        ),
-      ],
+      [JSON.stringify({ type: "assistant-potager-all", potagers, activePotagerId, exportedAt: new Date().toISOString() }, null, 2)],
       { type: "application/json" }
     );
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "assistant-potager-v2-tous-les-potagers.json";
+    anchor.download = "assistant-potager-tous-les-potagers.json";
     anchor.click();
     URL.revokeObjectURL(url);
   }
@@ -860,32 +1006,17 @@ export default function App() {
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-
     reader.onload = () => {
       try {
         const parsed = JSON.parse(String(reader.result || "{}"));
-
-        if (
-          (parsed.type === "assistant-potager-all-v2" || parsed.type === "assistant-potager-all") &&
-          Array.isArray(parsed.potagers)
-        ) {
-          const nextPotagers = parsed.potagers.map((potager, index) =>
-            normalizePotager(potager, index)
-          );
+        if (parsed.type === "assistant-potager-all" && Array.isArray(parsed.potagers)) {
+          const nextPotagers = parsed.potagers.map((potager, index) => normalizePotager(potager, index));
           if (!nextPotagers.length) throw new Error("empty");
           setPotagers(nextPotagers);
-          setActivePotagerId(
-            nextPotagers.some((potager) => potager.id === parsed.activePotagerId)
-              ? parsed.activePotagerId
-              : nextPotagers[0].id
-          );
+          setActivePotagerId(nextPotagers.some((potager) => potager.id === parsed.activePotagerId) ? parsed.activePotagerId : nextPotagers[0].id);
           return;
         }
-
-        if (
-          (parsed.type === "assistant-potager-single-v2" || parsed.type === "assistant-potager-single") &&
-          parsed.potager
-        ) {
+        if (parsed.type === "assistant-potager-single" && parsed.potager) {
           const next = normalizePotager(parsed.potager, potagers.length);
           next.id = uid();
           next.name = `${next.name} importé`;
@@ -895,7 +1026,6 @@ export default function App() {
           setActivePotagerId(next.id);
           return;
         }
-
         if (parsed?.cells || parsed?.name) {
           const next = normalizePotager(parsed, potagers.length);
           next.id = uid();
@@ -906,7 +1036,6 @@ export default function App() {
           setActivePotagerId(next.id);
           return;
         }
-
         alert("Fichier non reconnu.");
       } catch {
         alert("Import impossible : fichier invalide.");
@@ -914,7 +1043,6 @@ export default function App() {
         event.target.value = "";
       }
     };
-
     reader.readAsText(file);
   }
 
@@ -922,6 +1050,7 @@ export default function App() {
     if (!activePotager) return;
     const summary = [
       `🌱 ${activePotager.name}`,
+      `Gabarit : ${rows} × ${cols}`,
       `Plants : ${totalPlants}`,
       `Arrosage estimé : ${waterNeed} L / jour`,
       `Récolte estimée : ${harvestEstimate} kg`,
@@ -931,13 +1060,9 @@ export default function App() {
 
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: activePotager.name,
-          text: summary,
-          url: window.location.href,
-        });
+        await navigator.share({ title: activePotager.name, text: summary, url: window.location.href });
       } catch {
-        // partage annulé
+        // annulé
       }
       return;
     }
@@ -953,9 +1078,7 @@ export default function App() {
   function toggleReminderDone(reminderId) {
     updateActivePotager((potager) => ({
       ...potager,
-      reminders: potager.reminders.map((reminder) =>
-        reminder.id === reminderId ? { ...reminder, done: !reminder.done } : reminder
-      ),
+      reminders: potager.reminders.map((reminder) => (reminder.id === reminderId ? { ...reminder, done: !reminder.done } : reminder)),
     }));
   }
 
@@ -975,7 +1098,6 @@ export default function App() {
 
     const quantity = Math.max(1, Number(actionDraft.quantity || 1));
     const actionDateISO = new Date(`${actionDraft.date}T09:00:00`).toISOString();
-
     const newAction = normalizeAction({
       id: uid(),
       type: actionDraft.type,
@@ -988,12 +1110,7 @@ export default function App() {
       createdAt: new Date().toISOString(),
     });
 
-    const newReminders = buildReminderBlueprints(
-      actionDraft.type,
-      activeCell.plant,
-      quantity,
-      activeCell.label
-    ).map((blueprint) =>
+    const newReminders = buildReminderBlueprints(actionDraft.type, activeCell.plant, quantity, activeCell.label).map((blueprint) =>
       normalizeReminder({
         id: uid(),
         sourceActionId: newAction.id,
@@ -1018,6 +1135,7 @@ export default function App() {
       actions: [newAction, ...potager.actions],
       reminders: [...newReminders, ...potager.reminders],
       mobileTab: isMobile ? "reminders" : potager.mobileTab,
+      assistantStep: "followup",
     }));
 
     setActionDraft({
@@ -1028,17 +1146,25 @@ export default function App() {
     });
   }
 
-  // Repère 4/6 — actions grille, calculs, alertes, rappels
+  // Repère 3/6 — manipulation du plan guidé
   function selectCell(id) {
-    updateActivePotager((potager) => ({ ...potager, selectedId: id, mobileTab: isMobile ? "cell" : potager.mobileTab }));
+    updateActivePotager((potager) => ({
+      ...potager,
+      selectedId: id,
+      mobileTab: isMobile ? "cell" : potager.mobileTab,
+    }));
   }
 
   function addCase() {
     const next = makeCell("Nouvelle case", "empty");
+    const nextLen = cells.length + 1;
+    const nextRows = Math.ceil(nextLen / cols);
     updateActivePotager((potager) => ({
       ...potager,
+      rows: nextRows,
       cells: [...potager.cells, next],
       selectedId: next.id,
+      activePresetKey: "custom",
     }));
   }
 
@@ -1049,84 +1175,124 @@ export default function App() {
     }
     const next = makeCell("Nouvelle case", "empty");
     const index = cells.findIndex((cell) => cell.id === activeCell.id);
-    updateActivePotager((potager) => {
-      const copy = [...potager.cells];
-      copy.splice(index + 1, 0, next);
-      return { ...potager, cells: copy, selectedId: next.id };
-    });
+    const copy = [...cells];
+    copy.splice(index + 1, 0, next);
+    const nextRows = Math.ceil(copy.length / cols);
+    updateActivePotager((potager) => ({
+      ...potager,
+      rows: nextRows,
+      cells: copy,
+      selectedId: next.id,
+      activePresetKey: "custom",
+    }));
   }
 
   function addRow() {
-    const row = Array.from(
-      { length: Math.max(1, isMobile ? mobileGridCols : cols) },
-      (_, index) => makeCell(`Nouvelle case ${index + 1}`, "empty")
-    );
+    const row = Array.from({ length: cols }, (_, index) => makeCell(`Case ${rows + 1}.${index + 1}`, "empty"));
     updateActivePotager((potager) => ({
       ...potager,
+      rows: potager.rows + 1,
       cells: [...potager.cells, ...row],
-      selectedId: row[0].id,
+      selectedId: row[0]?.id || potager.selectedId,
+      activePresetKey: "custom",
+    }));
+  }
+
+  function removeRow() {
+    if (rows <= 1) return;
+    const newCells = cells.slice(0, Math.max(1, (rows - 1) * cols));
+    updateActivePotager((potager) => ({
+      ...potager,
+      rows: potager.rows - 1,
+      cells: newCells,
+      activePresetKey: "custom",
+    }));
+  }
+
+  function addColumn() {
+    const newCells = [];
+    for (let r = 0; r < rows; r += 1) {
+      const rowCells = cells.slice(r * cols, r * cols + cols);
+      newCells.push(...rowCells);
+      newCells.push(makeCell(`Case ${r + 1}.${cols + 1}`, "empty"));
+    }
+    updateActivePotager((potager) => ({
+      ...potager,
+      cols: potager.cols + 1,
+      cells: newCells,
+      selectedId: potager.selectedId || newCells[0]?.id || null,
+      activePresetKey: "custom",
+    }));
+  }
+
+  function removeColumn() {
+    if (cols <= 1) return;
+    const newCells = [];
+    for (let r = 0; r < rows; r += 1) {
+      const rowCells = cells.slice(r * cols, r * cols + cols);
+      newCells.push(...rowCells.slice(0, cols - 1));
+    }
+    updateActivePotager((potager) => ({
+      ...potager,
+      cols: potager.cols - 1,
+      cells: newCells,
+      activePresetKey: "custom",
     }));
   }
 
   function duplicateSelected() {
     if (!activeCell) return;
-    const next = {
-      ...activeCell,
-      id: uid(),
-      label: `${activeCell.label} copie`,
-    };
+    const next = { ...activeCell, id: uid(), label: `${activeCell.label} copie` };
+    const copy = [...cells, next];
     updateActivePotager((potager) => ({
       ...potager,
-      cells: [...potager.cells, next],
+      rows: Math.ceil(copy.length / potager.cols),
+      cells: copy,
       selectedId: next.id,
+      activePresetKey: "custom",
     }));
   }
 
   function deleteSelected() {
     if (!activeCell || cells.length <= 1) return;
+    const nextCells = cells.filter((cell) => cell.id !== activeCell.id);
     updateActivePotager((potager) => ({
       ...potager,
-      cells: potager.cells.filter((cell) => cell.id !== activeCell.id),
+      rows: Math.max(1, Math.ceil(nextCells.length / potager.cols)),
+      cells: nextCells,
       reminders: potager.reminders.filter((reminder) => reminder.cellId !== activeCell.id),
       actions: potager.actions.filter((action) => action.cellId !== activeCell.id),
+      activePresetKey: "custom",
     }));
   }
 
   function moveSelected(direction) {
     if (!activeCell) return;
-    const step = isMobile ? mobileGridCols : cols;
     const index = cells.findIndex((cell) => cell.id === activeCell.id);
 
     let target = index;
     if (direction === "left") target = index - 1;
     if (direction === "right") target = index + 1;
-    if (direction === "up") target = index - step;
-    if (direction === "down") target = index + step;
+    if (direction === "up") target = index - cols;
+    if (direction === "down") target = index + cols;
 
     if (target < 0 || target >= cells.length) return;
+
+    const sameRowLeft = Math.floor(index / cols) === Math.floor(target / cols);
+    const sameRowRight = sameRowLeft;
+    if ((direction === "left" || direction === "right") && !sameRowRight) return;
 
     updateActivePotager((potager) => {
       const copy = [...potager.cells];
       [copy[index], copy[target]] = [copy[target], copy[index]];
-      return { ...potager, cells: copy };
+      return { ...potager, cells: copy, activePresetKey: "custom" };
     });
   }
 
   function resetCurrentPotager() {
-    const fresh = defaultCells();
-    updateActivePotager((potager) => ({
-      ...potager,
-      cells: fresh,
-      cols: 4,
-      selectedId: fresh[0]?.id || null,
-      quickPlant: "tomate",
-      orientation: "south",
-      sunMode: 2,
-      zoom: 100,
-      reminders: [],
-      actions: [],
-      mobileTab: "plan",
-    }));
+    const fresh = createPotager(activePotager?.name || "Potager principal");
+    updateActivePotager(() => ({ ...fresh, id: activePotager.id, name: activePotager.name }));
+    setPhotoPreview("");
     setMobileActionsOpen(false);
   }
 
@@ -1170,6 +1336,17 @@ export default function App() {
     selectCell(cell.id);
   }
 
+  function paintSelectedHot() {
+    if (!activeCell) return;
+    updateCell(activeCell.id, (cell) => ({ ...cell, sunBase: 3, exposureTag: "chaud" }));
+  }
+
+  function paintSelectedShade() {
+    if (!activeCell) return;
+    updateCell(activeCell.id, (cell) => ({ ...cell, sunBase: 1, exposureTag: "frais" }));
+  }
+
+  // Repère 4/6 — calculs, recommandations, alertes, météo
   const totalPlants = useMemo(
     () => cells.reduce((sum, cell) => sum + Number(cell.count || 0), 0),
     [cells]
@@ -1178,11 +1355,7 @@ export default function App() {
   const waterNeed = useMemo(
     () =>
       cells
-        .reduce(
-          (sum, cell) =>
-            sum + Number(cell.count || 0) * Number(plants[cell.plant]?.water || 0),
-          0
-        )
+        .reduce((sum, cell) => sum + Number(cell.count || 0) * Number(plants[cell.plant]?.water || 0), 0)
         .toFixed(1),
     [cells]
   );
@@ -1190,11 +1363,7 @@ export default function App() {
   const harvestEstimate = useMemo(
     () =>
       cells
-        .reduce(
-          (sum, cell) =>
-            sum + Number(cell.count || 0) * Number(plants[cell.plant]?.yield || 0),
-          0
-        )
+        .reduce((sum, cell) => sum + Number(cell.count || 0) * Number(plants[cell.plant]?.yield || 0), 0)
         .toFixed(1),
     [cells]
   );
@@ -1211,28 +1380,19 @@ export default function App() {
   const monthTasks = useMemo(() => {
     const month = new Date().getMonth() + 1;
     const tasks = [];
-
     cells.forEach((cell) => {
       if (cell.zoneType !== "plant" || Number(cell.count || 0) <= 0) return;
       const plant = plants[cell.plant];
       const task = plant.tasks[month];
       if (task) tasks.push(`${plant.icon} ${plant.name} — ${task} (${cell.label})`);
     });
-
-    if (weather?.temperature >= 24) {
-      tasks.push("🌤 Vérifier les zones en plein soleil");
-    }
-
+    if (weather?.temperature >= 24) tasks.push("🌤 Vérifier les zones en plein soleil");
+    if (weather?.temperature <= 6) tasks.push("🧤 Jeunes plants : prudence avec le froid nocturne");
     return [...new Set(tasks)];
   }, [cells, weather]);
 
   const categorizedReminders = useMemo(() => {
-    const result = {
-      today: [],
-      late: [],
-      upcoming: [],
-      done: [],
-    };
+    const result = { today: [], late: [], upcoming: [], done: [] };
     reminders
       .map((reminder) => ({ ...reminder, status: getReminderStatus(reminder) }))
       .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
@@ -1249,229 +1409,157 @@ export default function App() {
 
   const smartAlerts = useMemo(() => {
     const list = [];
-
     cells.forEach((cell) => {
       if (cell.zoneType !== "plant" || Number(cell.count || 0) <= 0) return;
       const plant = plants[cell.plant];
-      if (plant.sunNeed > sunOf(cell)) {
-        list.push(`☀️ ${plant.name} manque de soleil dans ${cell.label}`);
-      }
-      if (Number(cell.count || 0) >= 8) {
-        list.push(`📏 ${cell.label} semble chargé : surveiller l’espacement`);
-      }
+      if (plant.sunNeed > sunOf(cell)) list.push(`☀️ ${plant.name} manque de soleil dans ${cell.label}`);
+      if (Number(cell.count || 0) >= 8) list.push(`📏 ${cell.label} semble chargé : surveiller l’espacement`);
       list.push(`💧 Arroser ${plant.name} dans ${cell.label}`);
     });
 
     if (weather?.temperature >= 28) list.push("🔥 Forte chaleur : arroser le soir");
     if (weather?.temperature <= 5) list.push("❄️ Risque de froid pour les jeunes plants");
     if (weather?.windspeed >= 35) list.push("💨 Vent fort : protéger les plants");
+    if (!diagnostic.lastAppliedAt) list.push("🧭 Lance le diagnostic guidé pour qualifier l’exposition du plan");
 
-    categorizedReminders.late.slice(0, 3).forEach((reminder) => {
-      list.push(`⏰ En retard : ${reminder.title} (${reminder.cellLabel})`);
-    });
-    categorizedReminders.today.slice(0, 3).forEach((reminder) => {
-      list.push(`📌 Aujourd’hui : ${reminder.title} (${reminder.cellLabel})`);
-    });
+    categorizedReminders.late.slice(0, 3).forEach((reminder) => list.push(`⏰ En retard : ${reminder.title} (${reminder.cellLabel})`));
+    categorizedReminders.today.slice(0, 3).forEach((reminder) => list.push(`📌 Aujourd’hui : ${reminder.title} (${reminder.cellLabel})`));
 
     return [...new Set(list)];
-  }, [cells, weather, sunMode, categorizedReminders]);
+  }, [cells, weather, diagnostic, categorizedReminders]);
 
-  // Repère 5/6 — rendu principal
+  const placementAdvice = useMemo(() => {
+    const plantable = cellsWithPosition.filter((cell) => cell.zoneType === "empty" || cell.zoneType === "plant");
+    const sortedBySun = [...plantable].sort((a, b) => sunOf(b) - sunOf(a));
+    const sortedShade = [...plantable].sort((a, b) => sunOf(a) - sunOf(b));
+
+    const hottest = sortedBySun.slice(0, Math.min(4, sortedBySun.length)).map((cell) => cell.label);
+    const coolest = sortedShade.slice(0, Math.min(4, sortedShade.length)).map((cell) => cell.label);
+
+    const tomatoCells = hottest.slice(0, 2);
+    const pepperCells = hottest.slice(2, 4);
+    const saladCells = coolest.slice(0, 2);
+    const herbCells = sortedShade.filter((cell) => sunOf(cell) >= 1 && sunOf(cell) <= 2).slice(0, 2).map((cell) => cell.label);
+
+    const notes = [];
+    notes.push(`Tomates / tomates cerises : ${tomatoCells.length ? tomatoCells.join(", ") : "aucune zone évidente"}.`);
+    notes.push(`Piments / poivrons : ${pepperCells.length ? pepperCells.join(", ") : "mêmes zones chaudes que les tomates"}.`);
+    notes.push(`Salades / persil : ${saladCells.length ? saladCells.join(", ") : "viser les zones plus fraîches"}.`);
+    notes.push(`Basilic / fleurs : ${herbCells.length ? herbCells.join(", ") : "zones intermédiaires bien accessibles"}.`);
+
+    if (diagnostic.photoName) {
+      notes.unshift(`Diagnostic photo assisté chargé : ${diagnostic.photoName}. Confiance actuelle : ${diagnostic.confidence}.`);
+    }
+
+    return notes;
+  }, [cellsWithPosition, diagnostic]);
+
+  const diagnosisSummary = useMemo(() => {
+    const list = [];
+    list.push(`Orientation retenue : ${terraceText(orientation)}.`);
+    list.push(`Côté le plus lumineux estimé : ${sideLabel(diagnostic.hotSide)}.`);
+    list.push(`Côté le plus ombragé estimé : ${sideLabel(diagnostic.shadowSide)}.`);
+    list.push(`Vent dominant à surveiller : ${sideLabel(diagnostic.windSide)}.`);
+    list.push(`Confiance : ${diagnostic.confidence}.`);
+    if (diagnostic.lastAppliedAt) list.push(`Dernière application au plan : ${formatDateTime(diagnostic.lastAppliedAt)}.`);
+    if (weather?.temperature >= 24) list.push("Contexte météo : chaleur actuelle, privilégier l’arrosage du soir et les zones chaudes pour tomates/piments.");
+    if (weather?.temperature <= 8) list.push("Contexte météo : fraîcheur marquée, sécuriser les mises en terre et les jeunes plants.");
+    if (weather?.windspeed >= 30) list.push("Contexte météo : vent notable, renforcer tuteurs et protections.");
+    return list;
+  }, [orientation, diagnostic, weather]);
+
+  // Repère 5/6 — rendu des panneaux guidés
+  function renderPotagerManager() {
+    return (
+      <Card title="🗂 Gestion des potagers">
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "220px 1fr auto", gap: 12, alignItems: "end" }}>
+          <label>
+            <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Potager actif</div>
+            <select value={activePotagerId} onChange={(e) => setActivePotagerId(e.target.value)} style={fieldStyle()}>
+              {potagers.map((potager) => (
+                <option key={potager.id} value={potager.id}>{potager.name}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Nom</div>
+            <input value={activePotager?.name || ""} onChange={(e) => renameActivePotager(e.target.value)} style={fieldStyle()} placeholder="Nom du potager" />
+          </label>
+
+          <button onClick={deleteActivePotager} disabled={potagers.length <= 1} style={primaryBtn(potagers.length > 1 ? "#b91c1c" : "#9ca3af")}>
+            Supprimer
+          </button>
+        </div>
+
+        <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {potagers.map((potager) => {
+            const selected = potager.id === activePotagerId;
+            return (
+              <button key={potager.id} onClick={() => setActivePotagerId(potager.id)} style={chipBtn(selected)}>
+                🌿 {potager.name}
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+    );
+  }
+
   function renderPlanCard() {
     return (
       <Card
         title="🗺 Plan du jardin"
         right={
           <div style={{ color: "#6b7280", fontSize: 13, fontWeight: 600 }}>
-            {terraceText(orientation)}
+            {rows} × {cols} • {terraceText(orientation)}
           </div>
         }
       >
-        {!isMobile ? (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 240px",
-              gap: 16,
-              marginBottom: 18,
-            }}
-          >
-            <div style={{ display: "grid", gap: 10 }}>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(4, minmax(140px, 1fr))",
-                  gap: 10,
-                }}
-              >
-                <label>
-                  <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Colonnes</div>
-                  <select
-                    value={cols}
-                    onChange={(e) =>
-                      updateActivePotager((potager) => ({
-                        ...potager,
-                        cols: clamp(Number(e.target.value) || 4, 1, 8),
-                      }))
-                    }
-                    style={fieldStyle()}
-                  >
-                    {[1,2,3,4,5,6,7,8].map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </label>
-
-                <label>
-                  <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Orientation</div>
-                  <select
-                    value={orientation}
-                    onChange={(e) =>
-                      updateActivePotager((potager) => ({
-                        ...potager,
-                        orientation: e.target.value,
-                      }))
-                    }
-                    style={fieldStyle()}
-                  >
-                    <option value="south">Terrasse en bas</option>
-                    <option value="north">Terrasse en haut</option>
-                    <option value="west">Terrasse à gauche</option>
-                    <option value="east">Terrasse à droite</option>
-                  </select>
-                </label>
-
-                <label>
-                  <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Soleil global</div>
-                  <select
-                    value={sunMode}
-                    onChange={(e) =>
-                      updateActivePotager((potager) => ({
-                        ...potager,
-                        sunMode: Number(e.target.value),
-                      }))
-                    }
-                    style={fieldStyle()}
-                  >
-                    <option value={1}>Matin / ombre</option>
-                    <option value={2}>Normal</option>
-                    <option value={3}>Plein soleil</option>
-                  </select>
-                </label>
-
-                <label>
-                  <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Plante rapide</div>
-                  <select
-                    value={quickPlant}
-                    onChange={(e) =>
-                      updateActivePotager((potager) => ({
-                        ...potager,
-                        quickPlant: e.target.value,
-                      }))
-                    }
-                    style={fieldStyle()}
-                  >
-                    {Object.keys(plants)
-                      .filter((key) => key !== "vide")
-                      .map((key) => (
-                        <option key={key} value={key}>
-                          {plants[key].icon} {plants[key].name}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-              </div>
-
-              <label>
-                <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Zoom de la grille</div>
-                <input
-                  type="range"
-                  min={60}
-                  max={150}
-                  step={5}
-                  value={zoom}
-                  onChange={(e) =>
-                    updateActivePotager((potager) => ({
-                      ...potager,
-                      zoom: Number(e.target.value),
-                    }))
-                  }
-                  style={{ width: "100%" }}
-                />
-                <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
-                  {zoom}% • {zoomText(zoom)} • {cells.length >= 24 ? "Dézoomer aide souvent" : "Taille confortable"}
-                </div>
-              </label>
-            </div>
-
-            <div
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 14,
-                padding: 12,
-                background: "#f8fafc",
-              }}
-            >
-              <div style={{ fontWeight: 700, marginBottom: 8 }}>Repères</div>
-              <div style={{ fontSize: 13, color: "#4b5563", lineHeight: 1.65 }}>
-                <div>• Sur ordinateur, le plan garde des contrôles rapides intégrés</div>
-                <div>• Cliquer une case ouvre aussi son panneau d’édition</div>
-                <div>• Les rappels viennent des actions validées</div>
-              </div>
-            </div>
+        <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={() => setMobileTab("assistant")} style={softBtn()}>Assistant guidé</button>
+            <button onClick={addCase} style={primaryBtn("#2563eb")}>+ case</button>
+            <button onClick={addRow} style={primaryBtn("#059669")}>+ ligne</button>
+            <button onClick={removeRow} style={softBtn()}>- ligne</button>
+            <button onClick={addColumn} style={primaryBtn("#0f766e")}>+ colonne</button>
+            <button onClick={removeColumn} style={softBtn()}>- colonne</button>
           </div>
-        ) : (
-          <div style={{ display: "grid", gap: 10, marginBottom: 16 }}>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={addCase} style={primaryBtn("#2563eb")}>Ajouter une case</button>
-              <button onClick={() => setMobileTab("settings")} style={softBtn()}>Réglages du plan</button>
-              <button onClick={() => setMobileTab("reminders")} style={softBtn()}>Voir les rappels</button>
+
+          <label>
+            <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Zoom de la grille</div>
+            <input
+              type="range"
+              min={60}
+              max={160}
+              step={5}
+              value={zoom}
+              onChange={(e) => updateActivePotager((potager) => ({ ...potager, zoom: Number(e.target.value) }))}
+              style={{ width: "100%" }}
+            />
+            <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+              {zoom}% • {zoomText(zoom)} • gabarit {rows} × {cols}
             </div>
-            <label>
-              <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Zoom de la grille</div>
-              <input
-                type="range"
-                min={60}
-                max={150}
-                step={5}
-                value={zoom}
-                onChange={(e) =>
-                  updateActivePotager((potager) => ({
-                    ...potager,
-                    zoom: Number(e.target.value),
-                  }))
-                }
-                style={{ width: "100%" }}
-              />
-              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
-                {zoom}% • {zoomText(zoom)}
-              </div>
-            </label>
-          </div>
-        )}
+          </label>
+        </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-          <button onClick={addCase} style={primaryBtn("#2563eb")}>Ajouter une case</button>
           <button onClick={insertAfterSelected} style={primaryBtn("#1d4ed8")}>Insérer après</button>
-          <button onClick={addRow} style={primaryBtn("#059669")}>Ajouter une ligne</button>
-          <button onClick={duplicateSelected} style={primaryBtn("#0f766e")}>Dupliquer la case</button>
-          <button
-            onClick={deleteSelected}
-            disabled={cells.length <= 1}
-            style={primaryBtn(cells.length > 1 ? "#b91c1c" : "#9ca3af")}
-          >
-            Supprimer la case
-          </button>
+          <button onClick={duplicateSelected} style={primaryBtn("#0f766e")}>Dupliquer</button>
+          <button onClick={deleteSelected} disabled={cells.length <= 1} style={primaryBtn(cells.length > 1 ? "#b91c1c" : "#9ca3af")}>Supprimer</button>
+          <button onClick={regenerateLabels} style={softBtn()}>Renommer les cases</button>
         </div>
 
         <div style={{ overflowX: "auto", paddingBottom: 6 }}>
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: `repeat(${planGridCols}, minmax(${cellMinWidth}px, 1fr))`,
+              gridTemplateColumns: `repeat(${cols}, minmax(${cellMinWidth}px, 1fr))`,
               gap: 14,
-              minWidth: isMobile ? "100%" : "max-content",
+              minWidth: "max-content",
             }}
           >
-            {cells.map((cell) => {
+            {cellsWithPosition.map((cell) => {
               const selected = selectedId === cell.id;
               const isPlant = cell.zoneType === "plant";
               return (
@@ -1485,57 +1573,32 @@ export default function App() {
                     padding: zoom <= 85 ? 10 : 14,
                     cursor: "pointer",
                     color: cell.zoneType === "terrace" || cell.zoneType === "tree" ? "#fff" : "#111827",
-                    boxShadow: selected
-                      ? "0 0 0 3px #111827 inset, 0 10px 24px rgba(0,0,0,0.16)"
-                      : "0 10px 24px rgba(0,0,0,0.08)",
+                    boxShadow: selected ? "0 0 0 3px #111827 inset, 0 10px 24px rgba(0,0,0,0.16)" : "0 10px 24px rgba(0,0,0,0.08)",
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "space-between",
                   }}
                 >
                   <div>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 8,
-                        alignItems: "flex-start",
-                      }}
-                    >
-                      <div style={{ fontWeight: 800, lineHeight: 1.25, fontSize: titleSize }}>
-                        {cell.label}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: Math.max(11, textSize - 2),
-                          opacity: 0.95,
-                          background: "rgba(255,255,255,0.22)",
-                          borderRadius: 999,
-                          padding: "4px 8px",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {zoneMeta[cell.zoneType]?.label || "Zone"}
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
+                      <div style={{ fontWeight: 800, lineHeight: 1.25, fontSize: titleSize }}>{cell.label}</div>
+                      <div style={{ fontSize: Math.max(11, textSize - 2), opacity: 0.95, background: "rgba(255,255,255,0.22)", borderRadius: 999, padding: "4px 8px", whiteSpace: "nowrap" }}>
+                        L{cell.row + 1}C{cell.col + 1}
                       </div>
                     </div>
 
                     <div style={{ fontSize: iconSize, marginTop: 8 }}>{iconOf(cell)}</div>
+
                     <div style={{ marginTop: 6, fontWeight: 700, fontSize: textSize }}>
                       {isPlant ? plants[cell.plant]?.name || "Culture" : zoneMeta[cell.zoneType]?.label || "Zone"}
                     </div>
 
+                    <div style={{ marginTop: 4, fontSize: Math.max(11, textSize - 2), color: "#374151" }}>
+                      ☀ {sunOf(cell)}/3 • {cell.exposureTag}
+                    </div>
+
                     {cell.note ? (
-                      <div
-                        style={{
-                          marginTop: 8,
-                          fontSize: Math.max(11, textSize - 2),
-                          opacity: 0.95,
-                          lineHeight: 1.45,
-                          background: "rgba(255,255,255,0.18)",
-                          borderRadius: 10,
-                          padding: "6px 8px",
-                        }}
-                      >
+                      <div style={{ marginTop: 8, fontSize: Math.max(11, textSize - 2), opacity: 0.95, lineHeight: 1.45, background: "rgba(255,255,255,0.18)", borderRadius: 10, padding: "6px 8px" }}>
                         {cell.note}
                       </div>
                     ) : null}
@@ -1543,49 +1606,15 @@ export default function App() {
 
                   <div style={{ fontSize: textSize, lineHeight: 1.5 }}>
                     <div>Plants : {isPlant ? Number(cell.count || 0) : "—"}</div>
-                    <div>☀ Soleil : {sunOf(cell)}/3</div>
-
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
                       {isPlant ? (
                         <>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removePlant(cell);
-                            }}
-                            style={miniBtn()}
-                          >
-                            -1
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              addPlant(cell);
-                            }}
-                            style={miniBtn()}
-                          >
-                            +1
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              applyQuick(cell);
-                            }}
-                            style={miniBtn("rgba(255,255,255,0.88)")}
-                          >
-                            {plants[quickPlant].icon}
-                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); removePlant(cell); }} style={miniBtn()}>-1</button>
+                          <button onClick={(e) => { e.stopPropagation(); addPlant(cell); }} style={miniBtn()}>+1</button>
+                          <button onClick={(e) => { e.stopPropagation(); applyQuick(cell); }} style={miniBtn("rgba(255,255,255,0.88)")}>{plants[quickPlant].icon}</button>
                         </>
                       ) : (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            applyQuick(cell);
-                          }}
-                          style={miniBtn()}
-                        >
-                          Passer en culture
-                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); applyQuick(cell); }} style={miniBtn()}>Culture</button>
                       )}
                     </div>
                   </div>
@@ -1598,178 +1627,189 @@ export default function App() {
     );
   }
 
-  function renderSettingsPanel() {
+  function renderAssistantPanel() {
     return (
       <div style={{ display: "grid", gap: 16 }}>
-        <Card title="🗂 Potagers">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "1fr" : "220px 1fr auto",
-              gap: 12,
-              alignItems: "end",
-            }}
-          >
-            <label>
-              <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Potager actif</div>
-              <select
-                value={activePotagerId}
-                onChange={(e) => setActivePotagerId(e.target.value)}
-                style={fieldStyle()}
-              >
-                {potagers.map((potager) => (
-                  <option key={potager.id} value={potager.id}>
-                    {potager.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+        {renderPotagerManager()}
 
-            <label>
-              <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Nom</div>
-              <input
-                value={activePotager?.name || ""}
-                onChange={(e) => renameActivePotager(e.target.value)}
-                style={fieldStyle()}
-                placeholder="Nom du potager"
-              />
-            </label>
-
-            <button
-              onClick={deleteActivePotager}
-              disabled={potagers.length <= 1}
-              style={primaryBtn(potagers.length > 1 ? "#b91c1c" : "#9ca3af")}
-            >
-              Supprimer
-            </button>
-          </div>
-
-          <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {potagers.map((potager) => (
-              <button
-                key={potager.id}
-                onClick={() => setActivePotagerId(potager.id)}
-                style={chipBtn(potager.id === activePotagerId)}
-              >
-                🌿 {potager.name}
+        <Card title="🧭 Assistant guidé" right={<div style={{ color: "#6b7280", fontSize: 13 }}>{assistantStep}</div>}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+            {[
+              { key: "template", label: "1. Gabarit" },
+              { key: "diagnostic", label: "2. Diagnostic" },
+              { key: "placement", label: "3. Placement" },
+              { key: "followup", label: "4. Suivi" },
+            ].map((step) => (
+              <button key={step.key} onClick={() => setAssistantStep(step.key)} style={chipBtn(assistantStep === step.key)}>
+                {step.label}
               </button>
             ))}
           </div>
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
-            <button onClick={createNewPotager} style={primaryBtn("#2563eb")}>Nouveau potager</button>
-            <button onClick={duplicateActivePotager} style={primaryBtn("#0f766e")}>Dupliquer</button>
-            <button onClick={resetCurrentPotager} style={primaryBtn("#111827")}>Réinitialiser</button>
-          </div>
-        </Card>
-
-        <Card title="⚙️ Paramétrage du plan">
-          <div style={{ display: "grid", gap: 12 }}>
-            <label>
-              <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Colonnes</div>
-              <select
-                value={cols}
-                onChange={(e) =>
-                  updateActivePotager((potager) => ({
-                    ...potager,
-                    cols: clamp(Number(e.target.value) || 4, 1, 8),
-                  }))
-                }
-                style={fieldStyle()}
-              >
-                {[1,2,3,4,5,6,7,8].map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </label>
-
-            <label>
-              <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Orientation</div>
-              <select
-                value={orientation}
-                onChange={(e) =>
-                  updateActivePotager((potager) => ({
-                    ...potager,
-                    orientation: e.target.value,
-                  }))
-                }
-                style={fieldStyle()}
-              >
-                <option value="south">Terrasse en bas</option>
-                <option value="north">Terrasse en haut</option>
-                <option value="west">Terrasse à gauche</option>
-                <option value="east">Terrasse à droite</option>
-              </select>
-            </label>
-
-            <label>
-              <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Soleil global</div>
-              <select
-                value={sunMode}
-                onChange={(e) =>
-                  updateActivePotager((potager) => ({
-                    ...potager,
-                    sunMode: Number(e.target.value),
-                  }))
-                }
-                style={fieldStyle()}
-              >
-                <option value={1}>Matin / ombre</option>
-                <option value={2}>Normal</option>
-                <option value={3}>Plein soleil</option>
-              </select>
-            </label>
-
-            <label>
-              <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Plante rapide</div>
-              <select
-                value={quickPlant}
-                onChange={(e) =>
-                  updateActivePotager((potager) => ({
-                    ...potager,
-                    quickPlant: e.target.value,
-                  }))
-                }
-                style={fieldStyle()}
-              >
-                {Object.keys(plants)
-                  .filter((key) => key !== "vide")
-                  .map((key) => (
-                    <option key={key} value={key}>
-                      {plants[key].icon} {plants[key].name}
-                    </option>
-                  ))}
-              </select>
-            </label>
-
-            <label>
-              <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Zoom de la grille</div>
-              <input
-                type="range"
-                min={60}
-                max={150}
-                step={5}
-                value={zoom}
-                onChange={(e) =>
-                  updateActivePotager((potager) => ({
-                    ...potager,
-                    zoom: Number(e.target.value),
-                  }))
-                }
-                style={{ width: "100%" }}
-              />
-              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
-                {zoom}% • {zoomText(zoom)} • {cells.length >= 24 ? "Dézoomer aide souvent" : "Taille confortable"}
+          {assistantStep === "template" ? (
+            <div style={{ display: "grid", gap: 14 }}>
+              <div style={{ color: "#4b5563", lineHeight: 1.55 }}>
+                Commence par un format simple déjà prêt. Ensuite seulement on qualifie l’exposition et on te suggère où planter.
               </div>
-            </label>
-          </div>
-        </Card>
 
-        <Card title="📤 Partage / import / export">
-          <div style={{ display: "grid", gap: 10 }}>
-            <button onClick={shareActivePotager} style={primaryBtn("#ea580c")}>Partager le potager actif</button>
-            <button onClick={exportActivePotager} style={primaryBtn("#9333ea")}>Exporter le potager actif</button>
-            <button onClick={exportAllPotagers} style={primaryBtn("#6d28d9")}>Exporter tous les potagers</button>
-            <button onClick={importClick} style={primaryBtn("#7c3aed")}>Importer un fichier</button>
-          </div>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, minmax(0, 1fr))", gap: 10 }}>
+                {planPresets.map((preset) => (
+                  <PresetCard key={preset.key} preset={preset} active={activePresetKey === preset.key} onApply={applyPreset} />
+                ))}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+                <label>
+                  <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Lignes</div>
+                  <input type="number" min={1} max={8} value={rows} onChange={(e) => updateActivePotager((potager) => ({ ...potager, rows: clamp(Number(e.target.value) || 1, 1, 8), activePresetKey: "custom" }))} style={fieldStyle()} />
+                </label>
+                <label>
+                  <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Colonnes</div>
+                  <input type="number" min={1} max={8} value={cols} onChange={(e) => updateActivePotager((potager) => ({ ...potager, cols: clamp(Number(e.target.value) || 1, 1, 8), activePresetKey: "custom" }))} style={fieldStyle()} />
+                </label>
+                <div style={{ display: "flex", alignItems: "end" }}>
+                  <button onClick={() => applyPreset({ key: "custom", rows, cols, layout: "blank" })} style={primaryBtn("#2563eb")}>
+                    Recréer la grille
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {assistantStep === "diagnostic" ? (
+            <div style={{ display: "grid", gap: 14 }}>
+              <div style={{ color: "#4b5563", lineHeight: 1.55 }}>
+                Ici tu qualifies le jardin très simplement. Si tu as une photo, charge-la pour garder un support visuel. Le diagnostic reste à confirmer manuellement pour rester fiable.
+              </div>
+
+              <input ref={photoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoUpload} />
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button onClick={photoInputClick} style={primaryBtn("#7c3aed")}>Charger une photo</button>
+                <button onClick={clearPhotoPreview} style={softBtn()}>Retirer la photo</button>
+                <button onClick={applyOrientationSuggestion} style={softBtn()}>Déduire l’orientation</button>
+                <button onClick={autoMapExposure} style={primaryBtn("#2563eb")}>Appliquer au plan</button>
+              </div>
+
+              {photoPreview ? (
+                <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden", background: "#f8fafc" }}>
+                  <img src={photoPreview} alt="Diagnostic potager" style={{ width: "100%", display: "block", maxHeight: 260, objectFit: "cover" }} />
+                </div>
+              ) : null}
+
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+                <label>
+                  <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Orientation générale</div>
+                  <select value={orientation} onChange={(e) => updateActivePotager((potager) => ({ ...potager, orientation: e.target.value }))} style={fieldStyle()}>
+                    <option value="south">Terrasse en bas</option>
+                    <option value="north">Terrasse en haut</option>
+                    <option value="west">Terrasse à gauche</option>
+                    <option value="east">Terrasse à droite</option>
+                  </select>
+                </label>
+
+                <label>
+                  <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Soleil global</div>
+                  <select value={sunMode} onChange={(e) => updateActivePotager((potager) => ({ ...potager, sunMode: Number(e.target.value) }))} style={fieldStyle()}>
+                    <option value={1}>Matin / ombre</option>
+                    <option value={2}>Normal</option>
+                    <option value={3}>Plein soleil</option>
+                  </select>
+                </label>
+
+                <label>
+                  <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Confiance</div>
+                  <select value={diagnostic.confidence} onChange={(e) => updateDiagnostic({ confidence: e.target.value })} style={fieldStyle()}>
+                    <option>À confirmer</option>
+                    <option>Faible</option>
+                    <option>Moyenne, à confirmer</option>
+                    <option>Bonne après validation visuelle</option>
+                  </select>
+                </label>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+                <label>
+                  <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Côté le plus lumineux</div>
+                  <select value={diagnostic.hotSide} onChange={(e) => updateDiagnostic({ hotSide: e.target.value })} style={fieldStyle()}>
+                    {sideOptions.map((opt) => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
+                  </select>
+                </label>
+
+                <label>
+                  <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Côté le plus ombragé</div>
+                  <select value={diagnostic.shadowSide} onChange={(e) => updateDiagnostic({ shadowSide: e.target.value })} style={fieldStyle()}>
+                    {sideOptions.map((opt) => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
+                  </select>
+                </label>
+
+                <label>
+                  <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Vent à surveiller</div>
+                  <select value={diagnostic.windSide} onChange={(e) => updateDiagnostic({ windSide: e.target.value })} style={fieldStyle()}>
+                    {sideOptions.map((opt) => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
+                  </select>
+                </label>
+              </div>
+
+              <label>
+                <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Notes de diagnostic</div>
+                <textarea value={diagnostic.notes} onChange={(e) => updateDiagnostic({ notes: e.target.value })} style={areaStyle()} placeholder="Exemple : ombre du mur le matin, fond droit très chaud, vent latéral..." />
+              </label>
+
+              <div style={{ display: "grid", gap: 8 }}>
+                {diagnosisSummary.map((line, index) => (
+                  <div key={`diag-${index}`} style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", lineHeight: 1.45 }}>
+                    {line}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {assistantStep === "placement" ? (
+            <div style={{ display: "grid", gap: 14 }}>
+              <div style={{ color: "#4b5563", lineHeight: 1.55 }}>
+                L’idée est de rendre le placement presque automatique : l’app repère les cases les plus chaudes, intermédiaires et fraîches à partir du diagnostic.
+              </div>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button onClick={autoMapExposure} style={primaryBtn("#2563eb")}>Recalculer l’exposition</button>
+                <button onClick={() => setMobileTab("plan")} style={softBtn()}>Retour au plan</button>
+              </div>
+
+              <div style={{ display: "grid", gap: 8 }}>
+                {placementAdvice.map((line, index) => (
+                  <div key={`placement-${index}`} style={{ background: "#ecfeff", border: "1px solid #a5f3fc", borderRadius: 12, padding: "10px 12px", lineHeight: 1.45 }}>
+                    {line}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, lineHeight: 1.55 }}>
+                <strong>Conseil pratique :</strong> clique une case dans le plan, puis passe dans l’onglet <strong>Case</strong> pour la transformer en culture, serre, allée, mur ou zone d’ombre. Tu peux ensuite valider les actions pour déclencher les rappels.
+              </div>
+            </div>
+          ) : null}
+
+          {assistantStep === "followup" ? (
+            <div style={{ display: "grid", gap: 14 }}>
+              <div style={{ color: "#4b5563", lineHeight: 1.55 }}>
+                Toute action validée crée automatiquement des rappels : délai moyen, signes à observer, quantité concernée et conseil pratique.
+              </div>
+
+              <div style={{ display: "grid", gap: 8 }}>
+                {smartAlerts.slice(0, 6).map((alert, index) => (
+                  <div key={`alert-${index}`} style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 12, padding: "10px 12px", lineHeight: 1.45 }}>
+                    {alert}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, lineHeight: 1.55 }}>
+                <strong>Rappel de logique :</strong> semis, repiquage, mise en terre, tuteurage et récolte produisent des rappels qui tiennent compte du contexte météo et de la culture concernée.
+              </div>
+            </div>
+          ) : null}
         </Card>
       </div>
     );
@@ -1778,31 +1818,18 @@ export default function App() {
   function renderCellPanel() {
     return (
       <div style={{ display: "grid", gap: 16 }}>
-        <Card title="⚙️ Éditeur de case">
+        <Card title="⚙️ Case sélectionnée" right={activeCell ? <div style={{ color: "#6b7280", fontSize: 13 }}>{activeCell.label}</div> : null}>
           {activeCell ? (
             <>
               <div style={{ display: "grid", gap: 12 }}>
                 <label>
                   <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Nom</div>
-                  <input
-                    value={activeCell.label}
-                    onChange={(e) =>
-                      updateCell(activeCell.id, (cell) => ({
-                        ...cell,
-                        label: e.target.value,
-                      }))
-                    }
-                    style={fieldStyle()}
-                  />
+                  <input value={activeCell.label} onChange={(e) => updateCell(activeCell.id, (cell) => ({ ...cell, label: e.target.value }))} style={fieldStyle()} />
                 </label>
 
                 <label>
                   <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Type de zone</div>
-                  <select
-                    value={activeCell.zoneType}
-                    onChange={(e) => setSelectedZoneType(e.target.value)}
-                    style={fieldStyle()}
-                  >
+                  <select value={activeCell.zoneType} onChange={(e) => setSelectedZoneType(e.target.value)} style={fieldStyle()}>
                     <option value="plant">Culture</option>
                     <option value="grass">Pelouse</option>
                     <option value="terrace">Terrasse</option>
@@ -1818,73 +1845,33 @@ export default function App() {
                   <>
                     <label>
                       <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Plante</div>
-                      <select
-                        value={activeCell.plant}
-                        onChange={(e) =>
-                          updateCell(activeCell.id, (cell) => ({
-                            ...cell,
-                            plant: e.target.value,
-                          }))
-                        }
-                        style={fieldStyle()}
-                      >
-                        {Object.keys(plants)
-                          .filter((key) => key !== "vide")
-                          .map((key) => (
-                            <option key={key} value={key}>
-                              {plants[key].icon} {plants[key].name}
-                            </option>
-                          ))}
+                      <select value={activeCell.plant} onChange={(e) => updateCell(activeCell.id, (cell) => ({ ...cell, plant: e.target.value }))} style={fieldStyle()}>
+                        {Object.keys(plants).filter((key) => key !== "vide").map((key) => (
+                          <option key={key} value={key}>{plants[key].icon} {plants[key].name}</option>
+                        ))}
                       </select>
                     </label>
 
                     <label>
                       <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Nombre de plants</div>
-                      <input
-                        type="number"
-                        min={0}
-                        value={activeCell.count}
-                        onChange={(e) =>
-                          updateCell(activeCell.id, (cell) => ({
-                            ...cell,
-                            count: Math.max(0, Number(e.target.value) || 0),
-                          }))
-                        }
-                        style={fieldStyle()}
-                      />
+                      <input type="number" min={0} value={activeCell.count} onChange={(e) => updateCell(activeCell.id, (cell) => ({ ...cell, count: Math.max(0, Number(e.target.value) || 0) }))} style={fieldStyle()} />
                     </label>
                   </>
                 ) : null}
 
                 <label>
                   <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Soleil de base</div>
-                  <select
-                    value={activeCell.sunBase}
-                    onChange={(e) =>
-                      updateCell(activeCell.id, (cell) => ({
-                        ...cell,
-                        sunBase: Number(e.target.value),
-                      }))
-                    }
-                    style={fieldStyle()}
-                  >
-                    {[0,1,2,3].map((n) => <option key={n} value={n}>{n}</option>)}
+                  <select value={activeCell.sunBase} onChange={(e) => updateCell(activeCell.id, (cell) => ({ ...cell, sunBase: Number(e.target.value) }))} style={fieldStyle()}>
+                    <option value={0}>0</option>
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
+                    <option value={3}>3</option>
                   </select>
                 </label>
 
                 <label>
                   <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Note</div>
-                  <textarea
-                    value={activeCell.note}
-                    onChange={(e) =>
-                      updateCell(activeCell.id, (cell) => ({
-                        ...cell,
-                        note: e.target.value,
-                      }))
-                    }
-                    style={areaStyle()}
-                    placeholder="Exemple : serre, rang sud, variété précise..."
-                  />
+                  <textarea value={activeCell.note} onChange={(e) => updateCell(activeCell.id, (cell) => ({ ...cell, note: e.target.value }))} style={areaStyle()} placeholder="Exemple : zone chaude contre le mur, accès facile, serre temporaire..." />
                 </label>
               </div>
 
@@ -1899,87 +1886,57 @@ export default function App() {
                   <button onClick={() => moveSelected("right")} style={softBtn()}>→</button>
                 </div>
 
-                {activeCell.zoneType === "plant" ? (
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button onClick={() => removePlant(activeCell)} style={softBtn()}>-1 plant</button>
-                    <button onClick={() => addPlant(activeCell)} style={softBtn()}>+1 plant</button>
-                    <button
-                      onClick={() => updateCell(activeCell.id, (cell) => ({ ...cell, count: 0 }))}
-                      style={softBtn()}
-                    >
-                      Vider les plants
-                    </button>
-                  </div>
-                ) : (
-                  <button onClick={() => applyQuick(activeCell)} style={softBtn()}>
-                    Transformer en {plants[quickPlant].name}
-                  </button>
-                )}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button onClick={paintSelectedHot} style={softBtn()}>Marquer chaud</button>
+                  <button onClick={paintSelectedShade} style={softBtn()}>Marquer frais</button>
+                  {activeCell.zoneType === "plant" ? (
+                    <>
+                      <button onClick={() => removePlant(activeCell)} style={softBtn()}>-1 plant</button>
+                      <button onClick={() => addPlant(activeCell)} style={softBtn()}>+1 plant</button>
+                      <button onClick={() => updateCell(activeCell.id, (cell) => ({ ...cell, count: 0 }))} style={softBtn()}>Vider</button>
+                    </>
+                  ) : (
+                    <button onClick={() => applyQuick(activeCell)} style={softBtn()}>Transformer en {plants[quickPlant].name}</button>
+                  )}
+                </div>
               </div>
             </>
           ) : (
-            <div style={{ color: "#6b7280" }}>Sélectionne une case pour l’éditer.</div>
+            <div style={{ color: "#6b7280" }}>Sélectionne une case dans le plan.</div>
           )}
         </Card>
 
-        <Card title="✅ Valider une action logique">
+        <Card title="✅ Valider une action">
           {activeCell && activeCell.zoneType === "plant" ? (
             <div style={{ display: "grid", gap: 12 }}>
               <div style={{ color: "#4b5563", lineHeight: 1.5 }}>
-                Chaque validation crée des rappels intelligents avec quantité, délai moyen et signes à observer.
+                Une validation crée automatiquement des rappels avec quantité, délai moyen et signes à observer.
               </div>
 
               <label>
                 <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Action</div>
-                <select
-                  value={actionDraft.type}
-                  onChange={(e) => setActionDraft((prev) => ({ ...prev, type: e.target.value }))}
-                  style={fieldStyle()}
-                >
+                <select value={actionDraft.type} onChange={(e) => setActionDraft((prev) => ({ ...prev, type: e.target.value }))} style={fieldStyle()}>
                   {Object.entries(actionCatalog).map(([key, meta]) => (
-                    <option key={key} value={key}>
-                      {meta.icon} {meta.label}
-                    </option>
+                    <option key={key} value={key}>{meta.icon} {meta.label}</option>
                   ))}
                 </select>
               </label>
 
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <label>
                   <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Quantité</div>
-                  <input
-                    type="number"
-                    min={1}
-                    value={actionDraft.quantity}
-                    onChange={(e) =>
-                      setActionDraft((prev) => ({
-                        ...prev,
-                        quantity: Math.max(1, Number(e.target.value) || 1),
-                      }))
-                    }
-                    style={fieldStyle()}
-                  />
+                  <input type="number" min={1} value={actionDraft.quantity} onChange={(e) => setActionDraft((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} style={fieldStyle()} />
                 </label>
 
                 <label>
                   <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Date</div>
-                  <input
-                    type="date"
-                    value={actionDraft.date}
-                    onChange={(e) => setActionDraft((prev) => ({ ...prev, date: e.target.value }))}
-                    style={fieldStyle()}
-                  />
+                  <input type="date" value={actionDraft.date} onChange={(e) => setActionDraft((prev) => ({ ...prev, date: e.target.value }))} style={fieldStyle()} />
                 </label>
               </div>
 
               <label>
                 <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700 }}>Note</div>
-                <textarea
-                  value={actionDraft.note}
-                  onChange={(e) => setActionDraft((prev) => ({ ...prev, note: e.target.value }))}
-                  style={areaStyle()}
-                  placeholder="Exemple : plants très beaux, sol humidifié, paillage ajouté..."
-                />
+                <textarea value={actionDraft.note} onChange={(e) => setActionDraft((prev) => ({ ...prev, note: e.target.value }))} style={areaStyle()} placeholder="Exemple : repiquage après 2 vraies feuilles, mise en terre après acclimatation..." />
               </label>
 
               <button onClick={validateAction} style={primaryBtn("#2563eb")}>
@@ -1987,21 +1944,7 @@ export default function App() {
               </button>
             </div>
           ) : (
-            <div style={{ color: "#6b7280" }}>
-              Sélectionne une case de culture pour valider un semis, repiquage, mise en terre, tuteurage ou récolte.
-            </div>
-          )}
-        </Card>
-
-        <Card title="🕘 Historique récent">
-          {actions.length ? (
-            <div style={{ display: "grid", gap: 8 }}>
-              {actions.slice(0, 6).map((action) => (
-                <ActionCard key={action.id} action={action} />
-              ))}
-            </div>
-          ) : (
-            <div style={{ color: "#6b7280" }}>Aucune action validée pour l’instant.</div>
+            <div style={{ color: "#6b7280" }}>Sélectionne une culture pour valider une action logique.</div>
           )}
         </Card>
       </div>
@@ -2011,71 +1954,25 @@ export default function App() {
   function renderRemindersPanel() {
     return (
       <div style={{ display: "grid", gap: 16 }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(160px, 1fr))",
-            gap: 14,
-          }}
-        >
-          <StatCard icon="⏰" label="Rappels à faire" value={pendingReminders.length} subtitle="En retard, aujourd’hui ou à venir" />
-          <StatCard icon="🚨" label="En retard" value={categorizedReminders.late.length} subtitle="À traiter en priorité" />
-          <StatCard icon="✅" label="Terminés" value={categorizedReminders.done.length} subtitle="Rappels déjà cochés" />
-        </div>
-
-        <Card title="🧠 Comment fonctionnent les alertes ?">
-          <div style={{ display: "grid", gap: 10, lineHeight: 1.55 }}>
-            <div>
-              Les alertes se déclenchent de deux façons : automatiquement selon l’état du jardin
-              (soleil, météo, densité, arrosage) et via les actions que tu valides.
-            </div>
-            <div>
-              Quand tu valides un <strong>semis</strong>, un <strong>repiquage</strong>, une <strong>mise en terre</strong>,
-              un <strong>tuteurage</strong> ou une <strong>récolte</strong>, l’application crée des rappels avec :
-            </div>
-            <ul style={{ margin: 0, paddingLeft: 18 }}>
-              <li>la quantité concernée,</li>
-              <li>le délai moyen de vérification,</li>
-              <li>les signes à observer,</li>
-              <li>un conseil pratique à suivre.</li>
-            </ul>
-          </div>
-        </Card>
-
-        <Card title="🚨 Alertes intelligentes du moment">
+        <Card title="🚨 Alertes intelligentes">
           {smartAlerts.length ? (
             <div style={{ display: "grid", gap: 8 }}>
               {smartAlerts.map((alert, index) => (
-                <div
-                  key={`${alert}-${index}`}
-                  style={{
-                    background: "#fff7ed",
-                    border: "1px solid #fed7aa",
-                    borderRadius: 12,
-                    padding: "10px 12px",
-                    fontSize: 14,
-                    lineHeight: 1.45,
-                  }}
-                >
+                <div key={`${alert}-${index}`} style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 12, padding: "10px 12px", lineHeight: 1.45 }}>
                   {alert}
                 </div>
               ))}
             </div>
           ) : (
-            <div style={{ color: "#6b7280" }}>Aucune alerte active pour l’instant.</div>
+            <div style={{ color: "#6b7280" }}>Aucune alerte pour l’instant.</div>
           )}
         </Card>
 
-        <Card title="📌 À faire aujourd’hui / en retard">
-          {[...categorizedReminders.late, ...categorizedReminders.today].length ? (
+        <Card title="📍 Aujourd’hui / en retard">
+          {categorizedReminders.late.length || categorizedReminders.today.length ? (
             <div style={{ display: "grid", gap: 10 }}>
               {[...categorizedReminders.late, ...categorizedReminders.today].map((reminder) => (
-                <ReminderCard
-                  key={reminder.id}
-                  reminder={reminder}
-                  onToggleDone={toggleReminderDone}
-                  onDelete={deleteReminder}
-                />
+                <ReminderCard key={reminder.id} reminder={reminder} onToggleDone={toggleReminderDone} onDelete={deleteReminder} />
               ))}
             </div>
           ) : (
@@ -2087,12 +1984,7 @@ export default function App() {
           {categorizedReminders.upcoming.length ? (
             <div style={{ display: "grid", gap: 10 }}>
               {categorizedReminders.upcoming.map((reminder) => (
-                <ReminderCard
-                  key={reminder.id}
-                  reminder={reminder}
-                  onToggleDone={toggleReminderDone}
-                  onDelete={deleteReminder}
-                />
+                <ReminderCard key={reminder.id} reminder={reminder} onToggleDone={toggleReminderDone} onDelete={deleteReminder} />
               ))}
             </div>
           ) : (
@@ -2100,16 +1992,21 @@ export default function App() {
           )}
         </Card>
 
+        <Card title="🧾 Historique des actions">
+          {actions.length ? (
+            <div style={{ display: "grid", gap: 8 }}>
+              {actions.map((action) => <ActionCard key={action.id} action={action} />)}
+            </div>
+          ) : (
+            <div style={{ color: "#6b7280" }}>Aucune action validée pour le moment.</div>
+          )}
+        </Card>
+
         <Card title="✅ Terminés">
           {categorizedReminders.done.length ? (
             <div style={{ display: "grid", gap: 10 }}>
               {categorizedReminders.done.map((reminder) => (
-                <ReminderCard
-                  key={reminder.id}
-                  reminder={reminder}
-                  onToggleDone={toggleReminderDone}
-                  onDelete={deleteReminder}
-                />
+                <ReminderCard key={reminder.id} reminder={reminder} onToggleDone={toggleReminderDone} onDelete={deleteReminder} />
               ))}
             </div>
           ) : (
@@ -2120,99 +2017,69 @@ export default function App() {
     );
   }
 
-  const desktopLeftColumn = (
-    <div style={{ display: "grid", gap: 18 }}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(180px, 1fr))",
-          gap: 14,
-        }}
-      >
-        <StatCard icon="🌿" label="Plants au total" value={totalPlants} subtitle="Dans le potager actif" />
-        <StatCard icon="💧" label="Arrosage estimé / jour" value={`${waterNeed} L`} subtitle="Estimation théorique" />
-        <StatCard icon="🧺" label="Récolte estimée" value={`${harvestEstimate} kg`} subtitle="Potentiel global approximatif" />
-      </div>
+  function renderDesktopLeft() {
+    return (
+      <div style={{ display: "grid", gap: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(180px, 1fr))", gap: 14 }}>
+          <StatCard icon="🌿" label="Plants au total" value={totalPlants} subtitle="Dans le potager actif" />
+          <StatCard icon="💧" label="Arrosage estimé / jour" value={`${waterNeed} L`} subtitle="Estimation théorique" />
+          <StatCard icon="🧺" label="Récolte estimée" value={`${harvestEstimate} kg`} subtitle="Potentiel global approximatif" />
+        </div>
 
-      {renderPlanCard()}
+        {renderPlanCard()}
 
-      <Card title="📊 Répartition des plants">
-        {breakdown.length ? (
-          <div style={{ display: "grid", gap: 8 }}>
-            {breakdown.map(([key, count]) => (
-              <div
-                key={key}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  background: "#f8fafc",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 12,
-                  padding: "10px 12px",
-                }}
-              >
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span>{plants[key].icon}</span>
-                  <span>{plants[key].name}</span>
+        <Card title="📊 Répartition des plants">
+          {breakdown.length ? (
+            <div style={{ display: "grid", gap: 8 }}>
+              {breakdown.map(([key, count]) => (
+                <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px" }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span>{plants[key].icon}</span>
+                    <span>{plants[key].name}</span>
+                  </div>
+                  <strong>{count}</strong>
                 </div>
-                <strong>{count}</strong>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ color: "#6b7280" }}>Aucun plant enregistré.</div>
-        )}
-      </Card>
+              ))}
+            </div>
+          ) : (
+            <div style={{ color: "#6b7280" }}>Aucun plant enregistré.</div>
+          )}
+        </Card>
 
-      <Card title="🗓️ Tâches du mois">
-        {monthTasks.length ? (
-          <div style={{ display: "grid", gap: 8 }}>
-            {monthTasks.map((task, index) => (
-              <div
-                key={`${task}-${index}`}
-                style={{
-                  background: "#ecfeff",
-                  border: "1px solid #a5f3fc",
-                  borderRadius: 12,
-                  padding: "10px 12px",
-                  fontSize: 14,
-                  lineHeight: 1.45,
-                }}
-              >
-                {task}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ color: "#6b7280" }}>Aucune tâche détectée.</div>
-        )}
-      </Card>
-    </div>
-  );
+        <Card title="🗓️ Tâches du mois">
+          {monthTasks.length ? (
+            <div style={{ display: "grid", gap: 8 }}>
+              {monthTasks.map((task, index) => (
+                <div key={`${task}-${index}`} style={{ background: "#ecfeff", border: "1px solid #a5f3fc", borderRadius: 12, padding: "10px 12px", lineHeight: 1.45 }}>
+                  {task}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ color: "#6b7280" }}>Aucune tâche détectée.</div>
+          )}
+        </Card>
+      </div>
+    );
+  }
 
-  const desktopRightColumn = (
-    <div style={{ display: "grid", gap: 16 }}>
-      {renderSettingsPanel()}
-      {renderCellPanel()}
-      {renderRemindersPanel()}
-    </div>
-  );
+  function renderDesktopRight() {
+    return (
+      <div style={{ display: "grid", gap: 16 }}>
+        {renderAssistantPanel()}
+        {renderCellPanel()}
+        {renderRemindersPanel()}
+      </div>
+    );
+  }
 
   function renderMobileTabContent() {
-    if (mobileTab === "settings") return renderSettingsPanel();
+    if (mobileTab === "assistant") return renderAssistantPanel();
     if (mobileTab === "reminders") return renderRemindersPanel();
     if (mobileTab === "cell") return renderCellPanel();
     return (
       <div style={{ display: "grid", gap: 16 }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr",
-            gap: 14,
-          }}
-        >
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14 }}>
           <StatCard icon="🌿" label="Plants au total" value={totalPlants} subtitle="Dans le potager actif" />
           <StatCard icon="💧" label="Arrosage estimé / jour" value={`${waterNeed} L`} subtitle="Estimation théorique" />
           <StatCard icon="🧺" label="Récolte estimée" value={`${harvestEstimate} kg`} subtitle="Potentiel global approximatif" />
@@ -2233,14 +2100,8 @@ export default function App() {
         boxSizing: "border-box",
       }}
     >
-      <div style={{ maxWidth: 1660, margin: "0 auto" }}>
-        <input
-          ref={importRef}
-          type="file"
-          accept=".json,application/json"
-          style={{ display: "none" }}
-          onChange={importData}
-        />
+      <div style={{ maxWidth: 1680, margin: "0 auto" }}>
+        <input ref={importRef} type="file" accept=".json,application/json" style={{ display: "none" }} onChange={importData} />
 
         <div
           style={{
@@ -2260,31 +2121,20 @@ export default function App() {
           }}
         >
           <div style={{ flex: "1 1 340px" }}>
-            <h1 style={{ margin: 0, fontSize: isMobile ? 30 : 42 }}>
-              🌱 Assistant Potager V2
-            </h1>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 30 : 42 }}>🌱 Assistant Potager 2.1 guidé</h1>
             <div style={{ marginTop: 6, color: "#4b5563", lineHeight: 1.4 }}>
-              Plan dédié mobile • réglages séparés • actions validées • rappels intelligents
+              Gabarits prêts à l’emploi • diagnostic assisté • placement conseillé • rappels intelligents
             </div>
           </div>
 
           {isMobile ? (
             <div style={{ width: "100%", display: "grid", gap: 10 }}>
-              <button
-                onClick={() => setMobileActionsOpen((value) => !value)}
-                style={primaryBtn(mobileActionsOpen ? "#111827" : "#2563eb")}
-              >
+              <button onClick={() => setMobileActionsOpen((value) => !value)} style={primaryBtn(mobileActionsOpen ? "#111827" : "#2563eb")}>
                 {mobileActionsOpen ? "Fermer les actions" : "Ouvrir les actions"}
               </button>
 
               {mobileActionsOpen ? (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                    gap: 10,
-                  }}
-                >
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
                   <button onClick={createNewPotager} style={primaryBtn("#2563eb")}>Nouveau</button>
                   <button onClick={duplicateActivePotager} style={primaryBtn("#0f766e")}>Dupliquer</button>
                   <button onClick={importClick} style={primaryBtn("#7c3aed")}>Importer</button>
@@ -2294,13 +2144,7 @@ export default function App() {
                 </div>
               ) : null}
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                  gap: 8,
-                }}
-              >
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
                 {mobileTabs.map((tab) => (
                   <button
                     key={tab.key}
@@ -2337,16 +2181,9 @@ export default function App() {
         {isMobile ? (
           renderMobileTabContent()
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "minmax(860px, 1fr) 430px",
-              gap: 20,
-              alignItems: "start",
-            }}
-          >
-            {desktopLeftColumn}
-            {desktopRightColumn}
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(880px, 1fr) 460px", gap: 20, alignItems: "start" }}>
+            {renderDesktopLeft()}
+            {renderDesktopRight()}
           </div>
         )}
       </div>
