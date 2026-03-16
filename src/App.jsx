@@ -4,7 +4,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 const CITY = "Saint-Germain-lès-Arpajon (91180)";
 const LAT = 48.616;
 const LON = 2.258;
-const STORAGE = "potager_v23_plan_minimaliste";
+const STORAGE = "potager_v231_widget_context_save";
+const MANUAL_SAVE_STORAGE = `${STORAGE}_manual`;
 
 const structures = {
   empty: { label: "Vide", icon: "", color: "#f8fafc", border: "#cbd5e1", cultivable: false },
@@ -453,6 +454,11 @@ export default function App() {
   const [fullscreenPlan, setFullscreenPlan] = useState(false);
   const [focusOnlyPlan, setFocusOnlyPlan] = useState(true);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [showPlanControls, setShowPlanControls] = useState(false);
+  const [showWidgets, setShowWidgets] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState(() => safeRead(`${MANUAL_SAVE_STORAGE}_meta`, ""));
+  const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null });
   const planRef = useRef(null);
   const fileRef = useRef(null);
 
@@ -465,6 +471,22 @@ export default function App() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  useEffect(() => {
+    const onMouseDown = () => setContextMenu((prev) => (prev.open ? { open: false, x: 0, y: 0, index: null } : prev));
+    window.addEventListener("mousedown", onMouseDown);
+    return () => window.removeEventListener("mousedown", onMouseDown);
+  }, []);
+
+  useEffect(() => {
+    const onBeforeUnload = (event) => {
+      if (!dirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
 
   useEffect(() => {
     fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current_weather=true`)
@@ -517,6 +539,8 @@ export default function App() {
 
   function updateActivePlan(updater) {
     if (!activePlan) return;
+    setDirty(true);
+    setContextMenu({ open: false, x: 0, y: 0, index: null });
     setPlans((prev) =>
       prev.map((plan) => {
         if (plan.id !== activePlan.id) return plan;
@@ -549,8 +573,14 @@ export default function App() {
     }));
   }
 
-  function selectCell(index, event) {
+  function selectCell(index) {
     setSelectedIndex(index);
+    setContextMenu((prev) => (prev.open ? { open: false, x: 0, y: 0, index: null } : prev));
+  }
+
+  function openCellEditor(index, event) {
+    setSelectedIndex(index);
+    setContextMenu({ open: false, x: 0, y: 0, index: null });
     const rect = event?.currentTarget?.getBoundingClientRect();
     const panelWidth = isMobile ? Math.min(screenWidth - 24, 420) : 340;
     if (isMobile) {
@@ -564,12 +594,26 @@ export default function App() {
     setBuilderStep(1);
   }
 
+  function openContextMenu(index, event) {
+    if (isMobile) return;
+    event.preventDefault();
+    setSelectedIndex(index);
+    setEditor({ open: false, x: 0, y: 0 });
+    setContextMenu({
+      open: true,
+      x: clamp(event.clientX + 6, 10, window.innerWidth - 300),
+      y: clamp(event.clientY + 6, 10, window.innerHeight - 320),
+      index,
+    });
+  }
+
   function closeEditor() {
     setEditor((prev) => ({ ...prev, open: false }));
   }
 
   function createNewPlan() {
     const next = createPlan(`Potager ${plans.length + 1}`);
+    setDirty(true);
     setPlans((prev) => [...prev, next]);
     setActivePlanId(next.id);
     setSelectedIndex(null);
@@ -578,6 +622,7 @@ export default function App() {
 
   function duplicatePlan() {
     if (!activePlan) return;
+    setDirty(true);
     const next = normalizePlan({
       ...activePlan,
       id: uid(),
@@ -591,6 +636,7 @@ export default function App() {
 
   function deletePlan() {
     if (!activePlan || plans.length <= 1) return;
+    setDirty(true);
     const nextPlans = plans.filter((plan) => plan.id !== activePlan.id);
     setPlans(nextPlans);
     setActivePlanId(nextPlans[0].id);
@@ -599,6 +645,7 @@ export default function App() {
   }
 
   function applyPreset(preset) {
+    setDirty(true);
     updateActivePlan((plan) => ({
       ...plan,
       rows: preset.rows,
@@ -680,6 +727,29 @@ export default function App() {
     };
     reader.onerror = () => setPhotoUploading(false);
     reader.readAsDataURL(file);
+  }
+
+  function savePlanNow() {
+    const payload = { plans, activePlanId, savedAt: new Date().toISOString() };
+    localStorage.setItem(STORAGE, JSON.stringify(payload));
+    localStorage.setItem(MANUAL_SAVE_STORAGE, JSON.stringify(payload));
+    const stamp = new Date().toLocaleString("fr-FR");
+    localStorage.setItem(`${MANUAL_SAVE_STORAGE}_meta`, JSON.stringify(stamp));
+    setLastSavedAt(stamp);
+    setDirty(false);
+  }
+
+  function restoreLastSave() {
+    const saved = safeRead(MANUAL_SAVE_STORAGE, null);
+    if (!saved?.plans?.length) return;
+    const nextPlans = saved.plans.map((plan, index) => normalizePlan(plan, index));
+    setPlans(nextPlans);
+    setActivePlanId(nextPlans.some((plan) => plan.id === saved.activePlanId) ? saved.activePlanId : nextPlans[0].id);
+    setSelectedIndex(null);
+    setEditor({ open: false, x: 0, y: 0 });
+    setContextMenu({ open: false, x: 0, y: 0, index: null });
+    setDirty(false);
+    setLastSavedAt(safeRead(`${MANUAL_SAVE_STORAGE}_meta`, "") || new Date().toLocaleString("fr-FR"));
   }
 
   // Repère 3/6 — métriques, diagnostic, conseils
@@ -809,22 +879,25 @@ export default function App() {
     return (
       <button
         key={`${inFullscreen ? "fs" : "base"}-${cell.id}-${index}`}
-        onClick={(event) => selectCell(index, event)}
+        onClick={() => selectCell(index)}
+        onDoubleClick={(event) => openCellEditor(index, event)}
+        onContextMenu={(event) => openContextMenu(index, event)}
         title={`${structure.label}${plant ? ` • ${plant.name}` : ""}`}
         style={{
           width: cellSize,
           height: cellSize,
-          borderRadius: 10,
+          borderRadius: 12,
           border: `1.5px solid ${borderColor}`,
-          background: structure.color,
+          background: `linear-gradient(180deg, rgba(255,255,255,0.92) 0%, ${structure.color} 100%)`,
           position: "relative",
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           padding: 0,
-          boxShadow: isSelected ? "0 0 0 2px rgba(17,24,39,0.15)" : "none",
+          boxShadow: isSelected ? "0 0 0 2px rgba(17,24,39,0.15), 0 8px 20px rgba(15,23,42,0.12)" : "0 4px 10px rgba(15,23,42,0.05)",
           overflow: "hidden",
+          transition: "transform 0.12s ease, box-shadow 0.12s ease",
         }}
       >
         <div style={{ position: "absolute", inset: 0, opacity: cell.structure === "wall" ? 0.22 : 0.12 }}>
@@ -841,6 +914,8 @@ export default function App() {
             <div style={{ width: "100%", height: "100%", background: "repeating-linear-gradient(0deg, rgba(0,0,0,0.10) 0 8px, transparent 8px 16px), repeating-linear-gradient(90deg, rgba(0,0,0,0.08) 0 14px, transparent 14px 28px)" }} />
           ) : null}
         </div>
+
+        <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 6, background: structure.border, opacity: 0.9, zIndex: 1 }} />
 
         {plant ? (
           <div
@@ -903,6 +978,77 @@ export default function App() {
           />
         ) : null}
       </button>
+    );
+  }
+
+  function renderContextMenu() {
+    if (!contextMenu.open || contextMenu.index === null || !activePlan) return null;
+    const cell = activePlan.cells[contextMenu.index];
+    const cultivable = structures[cell.structure].cultivable;
+    return (
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "fixed",
+          left: contextMenu.x,
+          top: contextMenu.y,
+          zIndex: 70,
+          width: 290,
+          background: "rgba(255,255,255,0.98)",
+          border: "1px solid rgba(0,0,0,0.08)",
+          borderRadius: 18,
+          boxShadow: "0 24px 54px rgba(15,23,42,0.18)",
+          padding: 12,
+          display: "grid",
+          gap: 10,
+          backdropFilter: "blur(10px)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+          <div>
+            <div style={{ fontWeight: 800 }}>Case {contextMenu.index + 1}</div>
+            <div style={{ fontSize: 12, color: "#64748b" }}>{structures[cell.structure].label}{cell.plant ? ` • ${plants[cell.plant].name}` : ""}</div>
+          </div>
+          <button onClick={() => setContextMenu({ open: false, x: 0, y: 0, index: null })} style={softButton(false)}>✕</button>
+        </div>
+
+        <div style={{ display: "grid", gap: 6 }}>
+          <div style={{ fontWeight: 700, fontSize: 13 }}>Structure</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {structureOrder.slice(0, 9).map((key) => (
+              <button key={key} onClick={() => quickFill(contextMenu.index, key)} style={chipStyle(cell.structure === key, structures[key].border)}>
+                {structures[key].icon || "·"} {structures[key].label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {cultivable ? (
+          <div style={{ display: "grid", gap: 6 }}>
+            <div style={{ fontWeight: 700, fontSize: 13 }}>Culture rapide</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {plantOrder.slice(0, 6).map((key) => (
+                <button key={key} onClick={() => updateCell(contextMenu.index, (current) => ({ ...current, plant: key, count: Math.max(1, Number(current.count || 1)) }))} style={chipStyle(cell.plant === key, plants[key].color)}>
+                  {plants[key].icon} {plants[key].name}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {sunOptions.map((option) => (
+            <button key={option.value} onClick={() => updateCell(contextMenu.index, (current) => ({ ...current, sun: option.value }))} style={chipStyle(cell.sun === option.value, "#f59e0b")}>
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={(event) => openCellEditor(contextMenu.index, event)} style={button("#111827")}>Éditer complet</button>
+          <button onClick={() => updateCell(contextMenu.index, () => createCell())} style={softButton(false)}>Vider</button>
+        </div>
+      </div>
     );
   }
 
@@ -1120,7 +1266,7 @@ export default function App() {
           ))}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : focusOnlyPlan && tab === "plan" ? "1fr" : "minmax(860px, 1fr) 390px", gap: 18, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : focusOnlyPlan && !showWidgets && tab === "plan" ? "1fr" : "minmax(860px, 1fr) 390px", gap: 18, alignItems: "start" }}>
           <div style={{ display: "grid", gap: 16 }}>
             <Card
               title="🗺 Plan"
@@ -1129,6 +1275,12 @@ export default function App() {
                   <button onClick={() => setFocusOnlyPlan((v) => !v)} style={softButton(focusOnlyPlan)}>
                     {focusOnlyPlan ? "Plan seul" : "Plan + panneaux"}
                   </button>
+                  <button onClick={() => setShowWidgets((v) => !v)} style={softButton(showWidgets)}>
+                    Widgets
+                  </button>
+                  <button onClick={() => setShowPlanControls((v) => !v)} style={softButton(showPlanControls)}>
+                    Outils
+                  </button>
                   <button onClick={() => updateActivePlan((plan) => ({ ...plan, backgroundValidated: !plan.backgroundValidated }))} style={softButton(activePlan?.backgroundValidated)}>
                     Fond stylisé
                   </button>
@@ -1136,7 +1288,7 @@ export default function App() {
               }
             >
               <div style={{ display: "grid", gap: 12 }}>
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "220px 1fr", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "220px minmax(220px, 1fr) auto auto", gap: 10, alignItems: "end" }}>
                   <label>
                     <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Plan actif</div>
                     <select value={activePlanId} onChange={(e) => { setActivePlanId(e.target.value); setSelectedIndex(null); closeEditor(); }} style={fieldStyle()}>
@@ -1149,81 +1301,100 @@ export default function App() {
                     <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Nom</div>
                     <input value={activePlan?.name || ""} onChange={(e) => updateActivePlan((plan) => ({ ...plan, name: e.target.value }))} style={fieldStyle()} />
                   </label>
+                  <button onClick={savePlanNow} style={button("#2563eb")}>💾 Sauvegarder</button>
+                  <button onClick={restoreLastSave} style={softButton(false)}>↩ Restaurer</button>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <div style={{ background: dirty ? "#fff7ed" : "#f0fdf4", border: `1px solid ${dirty ? "#fed7aa" : "#86efac"}`, padding: "7px 12px", borderRadius: 999, fontSize: 13, fontWeight: 700 }}>
+                    {dirty ? "Modifications non sauvegardées" : "Plan sauvegardé"}
+                  </div>
+                  {lastSavedAt ? <div style={{ color: "#64748b", fontSize: 13 }}>Dernière sauvegarde : {lastSavedAt}</div> : null}
+                  <div style={{ color: "#64748b", fontSize: 13 }}>Clic = sélectionner • double clic = éditer • clic droit = menu rapide</div>
                 </div>
 
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {presets.map((preset) => (
-                    <button key={preset.key} onClick={() => applyPreset(preset)} style={chipStyle(false, "#2563eb")}>{preset.label}</button>
-                  ))}
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(6, minmax(120px, 1fr))", gap: 10 }}>
-                  <label>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Lignes</div>
-                    <input type="number" min={2} max={20} value={activePlan?.rows || 5} onChange={(e) => resizeGrid(Number(e.target.value) || 5, activePlan?.cols || 8)} style={fieldStyle()} />
-                  </label>
-                  <label>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Colonnes</div>
-                    <input type="number" min={2} max={20} value={activePlan?.cols || 8} onChange={(e) => resizeGrid(activePlan?.rows || 5, Number(e.target.value) || 8)} style={fieldStyle()} />
-                  </label>
-                  <label>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Orientation</div>
-                    <select value={activePlan?.orientation || "south"} onChange={(e) => updateActivePlan((plan) => ({ ...plan, orientation: e.target.value }))} style={fieldStyle()}>
-                      <option value="south">Sud</option>
-                      <option value="north">Nord</option>
-                      <option value="east">Est</option>
-                      <option value="west">Ouest</option>
-                    </select>
-                  </label>
-                  <label>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Côté lumineux</div>
-                    <select value={activePlan?.brightSide || "south"} onChange={(e) => updateActivePlan((plan) => ({ ...plan, brightSide: e.target.value }))} style={fieldStyle()}>
-                      <option value="south">Sud</option>
-                      <option value="north">Nord</option>
-                      <option value="east">Est</option>
-                      <option value="west">Ouest</option>
-                    </select>
-                  </label>
-                  <label>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Côté ombré</div>
-                    <select value={activePlan?.shadySide || "north"} onChange={(e) => updateActivePlan((plan) => ({ ...plan, shadySide: e.target.value }))} style={fieldStyle()}>
-                      <option value="north">Nord</option>
-                      <option value="south">Sud</option>
-                      <option value="east">Est</option>
-                      <option value="west">Ouest</option>
-                    </select>
-                  </label>
-                  <label>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Zoom</div>
-                    <input type="range" min={55} max={150} step={5} value={zoom} onChange={(e) => updateActivePlan((plan) => ({ ...plan, zoom: Number(e.target.value) }))} style={{ width: "100%" }} />
-                    <div style={{ fontSize: 12, color: "#64748b" }}>{zoom}%</div>
-                  </label>
-                </div>
-
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button onClick={() => updateActivePlan((plan) => ({ ...plan, zoom: clamp(plan.zoom - 10, 55, 150) }))} style={softButton(false)}>- Zoom</button>
+                  <button onClick={() => updateActivePlan((plan) => ({ ...plan, zoom: clamp(plan.zoom + 10, 55, 150) }))} style={softButton(false)}>+ Zoom</button>
+                  <button onClick={() => setFullscreenPlan(true)} style={softButton(false)}>Plein écran</button>
                   {compactStructureSummary.map((item) => (
                     <div key={item} style={{ background: "#f8fafc", border: "1px solid #e5e7eb", padding: "6px 10px", borderRadius: 999, fontSize: 13, color: "#475569" }}>{item}</div>
                   ))}
                 </div>
 
+                {showPlanControls ? (
+                  <div style={{ display: "grid", gap: 12, background: "rgba(248,250,252,0.95)", border: "1px solid #e5e7eb", borderRadius: 16, padding: 12 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {presets.map((preset) => (
+                        <button key={preset.key} onClick={() => applyPreset(preset)} style={chipStyle(false, "#2563eb")}>{preset.label}</button>
+                      ))}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(6, minmax(120px, 1fr))", gap: 10 }}>
+                      <label>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Lignes</div>
+                        <input type="number" min={2} max={20} value={activePlan?.rows || 5} onChange={(e) => resizeGrid(Number(e.target.value) || 5, activePlan?.cols || 8)} style={fieldStyle()} />
+                      </label>
+                      <label>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Colonnes</div>
+                        <input type="number" min={2} max={20} value={activePlan?.cols || 8} onChange={(e) => resizeGrid(activePlan?.rows || 5, Number(e.target.value) || 8)} style={fieldStyle()} />
+                      </label>
+                      <label>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Orientation</div>
+                        <select value={activePlan?.orientation || "south"} onChange={(e) => updateActivePlan((plan) => ({ ...plan, orientation: e.target.value }))} style={fieldStyle()}>
+                          <option value="south">Sud</option>
+                          <option value="north">Nord</option>
+                          <option value="east">Est</option>
+                          <option value="west">Ouest</option>
+                        </select>
+                      </label>
+                      <label>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Côté lumineux</div>
+                        <select value={activePlan?.brightSide || "south"} onChange={(e) => updateActivePlan((plan) => ({ ...plan, brightSide: e.target.value }))} style={fieldStyle()}>
+                          <option value="south">Sud</option>
+                          <option value="north">Nord</option>
+                          <option value="east">Est</option>
+                          <option value="west">Ouest</option>
+                        </select>
+                      </label>
+                      <label>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Côté ombré</div>
+                        <select value={activePlan?.shadySide || "north"} onChange={(e) => updateActivePlan((plan) => ({ ...plan, shadySide: e.target.value }))} style={fieldStyle()}>
+                          <option value="north">Nord</option>
+                          <option value="south">Sud</option>
+                          <option value="east">Est</option>
+                          <option value="west">Ouest</option>
+                        </select>
+                      </label>
+                      <label>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Zoom</div>
+                        <input type="range" min={55} max={150} step={5} value={zoom} onChange={(e) => updateActivePlan((plan) => ({ ...plan, zoom: Number(e.target.value) }))} style={{ width: "100%" }} />
+                        <div style={{ fontSize: 12, color: "#64748b" }}>{zoom}%</div>
+                      </label>
+                    </div>
+                  </div>
+                ) : null}
+
                 <div
                   ref={planRef}
                   style={{
-                    background: "#ffffffc9",
-                    borderRadius: 18,
+                    background: "linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(248,250,252,0.94) 100%)",
+                    borderRadius: 22,
                     padding: 14,
                     border: "1px solid rgba(0,0,0,0.07)",
                     overflow: "auto",
                     minHeight: isMobile ? 360 : 520,
+                    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.65)",
                   }}
                 >
-                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${activePlan?.cols || 1}, ${cellSize}px)`, gap: 6, width: "max-content", margin: "0 auto" }}>
-                    {activePlan?.cells.map((cell, index) => renderCell(cell, index))}
+                  <div style={{ background: "radial-gradient(circle at top left, rgba(99,102,241,0.06), transparent 28%), radial-gradient(circle at bottom right, rgba(16,185,129,0.05), transparent 28%)", borderRadius: 18, padding: 10, minWidth: "max-content" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: `repeat(${activePlan?.cols || 1}, ${cellSize}px)`, gap: 6, width: "max-content", margin: "0 auto" }}>
+                      {activePlan?.cells.map((cell, index) => renderCell(cell, index))}
+                    </div>
                   </div>
                 </div>
 
                 {selectedCell ? (
-                  <div style={{ background: "#f8fafc", borderRadius: 14, padding: 12, border: "1px solid #e5e7eb", display: "grid", gap: 8 }}>
+                  <div style={{ background: "rgba(248,250,252,0.92)", borderRadius: 16, padding: 12, border: "1px solid #e5e7eb", display: "grid", gap: 8 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                       <div>
                         <strong>Case {selectedIndex + 1}</strong> • {structures[selectedCell.structure].label}{selectedCell.plant ? ` • ${plants[selectedCell.plant].name}` : ""}
@@ -1232,14 +1403,7 @@ export default function App() {
                     </div>
                     <div style={{ color: "#334155", lineHeight: 1.5 }}>{selectedAdvice}</div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {structureOrder.map((key) => (
-                        <button key={key} onClick={() => quickFill(selectedIndex, key)} style={chipStyle(selectedCell.structure === key, structures[key].border)}>
-                          {structures[key].icon || "·"} {structures[key].label}
-                        </button>
-                      ))}
-                    </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button onClick={() => setBuilderStep(1) || setEditor((prev) => ({ ...prev, open: true }))} style={button("#111827")}>Éditer la case</button>
+                      <button onClick={(event) => openCellEditor(selectedIndex, event)} style={button("#111827")}>Éditer la case</button>
                       <button onClick={() => updateCell(selectedIndex, () => createCell())} style={softButton(false)}>Vider</button>
                       <button onClick={() => {
                         const nextIndex = activePlan.cells.findIndex((cell, i) => i !== selectedIndex && cell.structure === "empty" && !cell.plant);
@@ -1248,7 +1412,7 @@ export default function App() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ color: "#64748b", fontSize: 14 }}>Clique une case du plan pour l’éditer directement avec le panneau flottant.</div>
+                  <div style={{ color: "#64748b", fontSize: 14 }}>Clique une case pour la sélectionner, double-clique pour ouvrir l’édition, clic droit pour les options rapides.</div>
                 )}
               </div>
             </Card>
@@ -1415,6 +1579,7 @@ export default function App() {
         </div>
       </div>
 
+      {renderContextMenu()}
       {renderFloatingEditor()}
 
       {fullscreenPlan && activePlan ? (
