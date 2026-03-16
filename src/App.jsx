@@ -631,16 +631,18 @@ function createWindow(mode, existingCount) {
     today: "Aujourd’hui",
     status: "Statut",
     pots: "Ajouter des pots",
+    home: "Mon Potager",
   };
   return {
     id: crypto.randomUUID(),
     mode,
     title: titleMap[mode] || "Fenêtre",
-    x: 220 + existingCount * 26,
-    y: 120 + existingCount * 22,
-    width: mode === "pots" ? 430 : 420,
-    height: mode === "pots" ? 380 : 340,
+    x: mode === "home" ? 110 : 220 + existingCount * 26,
+    y: mode === "home" ? 86 : 120 + existingCount * 22,
+    width: mode === "home" ? 980 : mode === "pots" ? 430 : 420,
+    height: mode === "home" ? 610 : mode === "pots" ? 380 : 340,
     minimized: false,
+    closed: false,
   };
 }
 
@@ -649,6 +651,7 @@ export default function App() {
   const [createAt, setCreateAt] = useState(null);
   const [showUi, setShowUi] = useState(false);
   const [windows, setWindows] = useState([]);
+  const [homeWindow, setHomeWindow] = useState(() => createWindow("home", 0));
   const [activeId, setActiveId] = useState(null);
 
   useEffect(() => {
@@ -663,10 +666,33 @@ export default function App() {
 
   function openWindow(mode) {
     setWindows((current) => {
-      const next = [...current, createWindow(mode, current.length)];
+      const next = [...current, createWindow(mode, current.length + 1)];
       setActiveId(next[next.length - 1].id);
       return next;
     });
+  }
+
+  function closeHomeWindow() {
+    setHomeWindow((current) => ({ ...current, closed: true }));
+    setActiveId((prev) => (prev === homeWindow.id ? null : prev));
+  }
+
+  function reopenHomeWindow() {
+    setHomeWindow((current) => ({ ...current, closed: false, minimized: false }));
+    setActiveId(homeWindow.id);
+  }
+
+  function minimizeHomeWindow() {
+    setHomeWindow((current) => ({ ...current, minimized: !current.minimized }));
+    setActiveId(homeWindow.id);
+  }
+
+  function moveHomeWindow(_, pos) {
+    setHomeWindow((current) => ({ ...current, ...pos }));
+  }
+
+  function resizeHomeWindow(_, size) {
+    setHomeWindow((current) => ({ ...current, ...size }));
   }
 
   function closeWindow(id) {
@@ -689,6 +715,9 @@ export default function App() {
 
   function focusWindow(id) {
     setActiveId(id);
+    if (id === homeWindow.id) {
+      return;
+    }
     setWindows((current) => {
       const target = current.find((w) => w.id === id);
       if (!target) return current;
@@ -722,10 +751,18 @@ export default function App() {
       <Fireflies />
 
       <AnimatePresence>
-        {showUi ? (
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} style={{ maxWidth: 980, margin: "0 auto", padding: "38px 24px 28px", position: "relative", zIndex: 20 }}>
+        {showUi && !homeWindow.closed ? (
+          <FloatingWindow
+            win={homeWindow}
+            isActive={activeId === homeWindow.id || activeId === null}
+            onFocus={() => focusWindow(homeWindow.id)}
+            onClose={closeHomeWindow}
+            onMinimize={minimizeHomeWindow}
+            onMove={moveHomeWindow}
+            onResize={resizeHomeWindow}
+          >
             <HomeOverlay onOpenPanel={openWindow} onOpenCreate={setCreateAt} />
-          </motion.div>
+          </FloatingWindow>
         ) : null}
       </AnimatePresence>
 
@@ -745,6 +782,30 @@ export default function App() {
           </FloatingWindow>
         ))}
       </AnimatePresence>
+
+      {homeWindow.closed ? (
+        <button
+          onClick={reopenHomeWindow}
+          style={{
+            position: "fixed",
+            left: 24,
+            bottom: 24,
+            zIndex: 95,
+            height: 46,
+            padding: "0 16px",
+            borderRadius: 14,
+            border: "1px solid rgba(182,204,255,0.14)",
+            background: "linear-gradient(180deg, rgba(13,20,46,0.88), rgba(6,10,24,0.94))",
+            color: "#eef2ff",
+            fontWeight: 800,
+            letterSpacing: 1.1,
+            cursor: "pointer",
+            boxShadow: "0 12px 34px rgba(0,0,0,0.28)",
+          }}
+        >
+          Rouvrir l’accueil
+        </button>
+      ) : null}
 
       <AnimatePresence>{createAt ? <CreateCaseModal openAt={createAt} onClose={() => setCreateAt(null)} onSave={saveCase} /> : null}</AnimatePresence>
     </div>
