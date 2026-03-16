@@ -30,12 +30,20 @@ const zoneMeta = {
 };
 
 const presets = [
-  { key: "2x3", label: "2 × 3", rows: 2, cols: 3 },
-  { key: "3x3", label: "3 × 3", rows: 3, cols: 3 },
-  { key: "3x4", label: "3 × 4", rows: 3, cols: 4 },
-  { key: "4x4", label: "4 × 4", rows: 4, cols: 4 },
-  { key: "4x5", label: "4 × 5", rows: 4, cols: 5 },
-  { key: "long", label: "2 × 6", rows: 2, cols: 6 },
+  { key: "2x3", label: "2 × 3", rows: 2, cols: 3, family: "starter" },
+  { key: "3x3", label: "3 × 3", rows: 3, cols: 3, family: "starter" },
+  { key: "3x4", label: "3 × 4", rows: 3, cols: 4, family: "starter" },
+  { key: "4x4", label: "4 × 4", rows: 4, cols: 4, family: "starter" },
+  { key: "4x5", label: "4 × 5", rows: 4, cols: 5, family: "starter" },
+  { key: "5x5", label: "5 × 5", rows: 5, cols: 5, family: "large" },
+  { key: "5x6", label: "5 × 6", rows: 5, cols: 6, family: "large" },
+  { key: "6x6", label: "6 × 6", rows: 6, cols: 6, family: "large" },
+  { key: "6x8", label: "6 × 8", rows: 6, cols: 8, family: "large" },
+  { key: "8x8", label: "8 × 8", rows: 8, cols: 8, family: "large" },
+  { key: "10x4", label: "10 × 4", rows: 10, cols: 4, family: "long" },
+  { key: "12x4", label: "12 × 4", rows: 12, cols: 4, family: "long" },
+  { key: "3x8", label: "3 × 8", rows: 3, cols: 8, family: "long" },
+  { key: "4x10", label: "4 × 10", rows: 4, cols: 10, family: "long" },
 ];
 
 const mobileTabs = [
@@ -283,8 +291,8 @@ function normalizeCell(raw, index) {
 }
 
 function normalizePotager(raw, index = 0) {
-  const rows = clamp(Number(raw?.rows || 3), 1, 8);
-  const cols = clamp(Number(raw?.cols || 4), 1, 8);
+  const rows = clamp(Number(raw?.rows || 3), 1, 12);
+  const cols = clamp(Number(raw?.cols || 4), 1, 12);
   const defaults = createGrid(rows, cols);
   const source = Array.isArray(raw?.cells) && raw.cells.length ? raw.cells : defaults;
   const cells = Array.from({ length: rows * cols }, (_, i) => normalizeCell(source[i] || defaults[i], i));
@@ -536,6 +544,8 @@ export default function App() {
   const [mobileTab, setMobileTab] = useState("plan");
   const [placementMode, setPlacementMode] = useState(true);
   const [draftCase, setDraftCase] = useState(createDraft());
+  const [builderStep, setBuilderStep] = useState(1);
+  const [customPlan, setCustomPlan] = useState({ rows: 4, cols: 6 });
   const [actionForm, setActionForm] = useState({ type: "miseEnTerre", quantity: 1, date: today(), note: "" });
   const [planFullscreen, setPlanFullscreen] = useState(false);
   const [showBuilderPanel, setShowBuilderPanel] = useState(true);
@@ -585,6 +595,11 @@ export default function App() {
     [potagers, activePotagerId]
   );
 
+  useEffect(() => {
+    if (!activePotager) return;
+    setCustomPlan({ rows: activePotager.rows, cols: activePotager.cols });
+  }, [activePotager?.id, activePotager?.rows, activePotager?.cols]);
+
   const selectedCell = useMemo(() => {
     if (!activePotager) return null;
     return activePotager.cells.find((c) => c.id === activePotager.selectedCellId) || null;
@@ -607,8 +622,46 @@ export default function App() {
   }
 
   function applyPreset(rows, cols) {
-    const cells = createGrid(rows, cols);
-    updateActivePotager((p) => ({ ...p, rows, cols, cells, selectedCellId: null, planValidated: false }));
+    const safeRows = clamp(Number(rows || 3), 1, 12);
+    const safeCols = clamp(Number(cols || 4), 1, 12);
+    const cells = createGrid(safeRows, safeCols);
+    updateActivePotager((p) => ({ ...p, rows: safeRows, cols: safeCols, cells, selectedCellId: null, planValidated: false }));
+    setCustomPlan({ rows: safeRows, cols: safeCols });
+  }
+
+  function resizePlanKeepContent(nextRows, nextCols) {
+    if (!activePotager) return;
+    const safeRows = clamp(Number(nextRows || activePotager.rows), 1, 12);
+    const safeCols = clamp(Number(nextCols || activePotager.cols), 1, 12);
+    updateActivePotager((p) => {
+      const resized = Array.from({ length: safeRows * safeCols }, (_, i) => {
+        const row = Math.floor(i / safeCols);
+        const col = i % safeCols;
+        if (row < p.rows && col < p.cols) {
+          const previousIndex = row * p.cols + col;
+          return normalizeCell(p.cells[previousIndex], i);
+        }
+        return createEmptyCell(i);
+      });
+      return {
+        ...p,
+        rows: safeRows,
+        cols: safeCols,
+        cells: resized,
+        selectedCellId: null,
+        planValidated: false,
+      };
+    });
+    setCustomPlan({ rows: safeRows, cols: safeCols });
+  }
+
+  function applyCustomPlan() {
+    resizePlanKeepContent(customPlan.rows, customPlan.cols);
+  }
+
+  function expandPlan(rowsDelta, colsDelta) {
+    if (!activePotager) return;
+    resizePlanKeepContent(activePotager.rows + rowsDelta, activePotager.cols + colsDelta);
   }
 
   function createNewPotager() {
@@ -683,7 +736,47 @@ export default function App() {
       note: selectedCell.note,
       exposureTag: selectedCell.exposureTag || recommendedExposureForPlant(selectedCell.plant),
     });
+    setBuilderStep(selectedCell.zoneType === "plant" ? 4 : 3);
     if (isMobile) setMobileTab("builder");
+  }
+
+  function startDraftFlow(zoneType) {
+    const base = createDraft();
+    const next = {
+      ...base,
+      zoneType,
+      label: zoneType === "plant" ? "Nouvelle culture" : zoneMeta[zoneType]?.label || "Nouvelle case",
+      plant: zoneType === "plant" ? base.plant : "vide",
+      count: zoneType === "plant" ? 1 : 0,
+      sunBase: zoneType === "greenhouse" ? 3 : zoneType === "tree" ? 1 : base.sunBase,
+      exposureTag:
+        zoneType === "plant"
+          ? recommendedExposureForPlant(base.plant)
+          : zoneType === "tree"
+          ? "ombre"
+          : zoneType === "greenhouse"
+          ? "chaud"
+          : "standard",
+      note: "",
+    };
+    setDraftCase(next);
+    setBuilderStep(zoneType === "plant" ? 2 : 3);
+    setPlacementMode(true);
+    if (isMobile) setMobileTab("builder");
+  }
+
+  function nextBuilderStep() {
+    setBuilderStep((prev) => {
+      if (draftCase.zoneType !== "plant" && prev === 1) return 3;
+      return Math.min(4, prev + 1);
+    });
+  }
+
+  function prevBuilderStep() {
+    setBuilderStep((prev) => {
+      if (draftCase.zoneType !== "plant" && prev === 3) return 1;
+      return Math.max(1, prev - 1);
+    });
   }
 
   function updateSelectedCell(patch) {
@@ -877,8 +970,8 @@ export default function App() {
   function renderPlanGrid(compact = false) {
     if (!activePotager) return null;
     return (
-      <div style={{ border: compact ? "none" : "2px dashed #cbd5e1", borderRadius: 22, padding: compact ? 0 : isMobile ? 10 : 16, background: compact ? "transparent" : "#f8fafc" }}>
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${activePotager.cols}, minmax(${compact ? 96 : isMobile ? 104 : 146}px, 1fr))`, gap: compact ? 8 : isMobile ? 10 : 14 }}>
+      <div style={{ border: compact ? "none" : "2px dashed #cbd5e1", borderRadius: 22, padding: compact ? 0 : isMobile ? 10 : 16, background: compact ? "transparent" : "#f8fafc", overflowX: compact ? "visible" : "auto", overflowY: compact ? "visible" : "auto" }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${activePotager.cols}, minmax(${compact ? 96 : isMobile ? 104 : 146}px, 1fr))`, gap: compact ? 8 : isMobile ? 10 : 14, minWidth: compact ? "auto" : "max-content" }}>
           {activePotager.cells.map((cell, index) => (
             <PlanCell
               key={cell.id}
@@ -886,8 +979,11 @@ export default function App() {
               index={index}
               compact={compact}
               onClick={() => {
-                if (placementMode) placeDraftAt(index);
-                else selectCell(cell.id);
+                if (placementMode && cell.zoneType === "empty") {
+                  placeDraftAt(index);
+                } else {
+                  selectCell(cell.id);
+                }
               }}
               onDoubleClick={() => selectCell(cell.id)}
             />
@@ -914,14 +1010,43 @@ export default function App() {
     if (!activePotager) return null;
     return (
       <Card title="🗺️ Plan du potager" right={renderPlanToolbar()} style={{ position: "relative", overflow: "hidden" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-          <div style={{ color: "#6b7280", lineHeight: 1.5 }}>Plan plus lisible : tu crées d'abord une case, tu la poses ensuite. Double-clic pour ouvrir une case et affiner son suivi.</div>
+        <div style={{ display: "grid", gap: 12, marginBottom: 12 }}>
+          <div style={{ color: "#6b7280", lineHeight: 1.5 }}>Plan vide encadré : choisis d'abord un format, crée ta case pas à pas, puis clique sur un slot vide pour la poser. Cliquer une case déjà remplie l'ouvre directement.</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {presets.map((preset) => (
               <button key={preset.key} onClick={() => applyPreset(preset.rows, preset.cols)} style={softButton(activePotager.rows === preset.rows && activePotager.cols === preset.cols)}>
                 {preset.label}
               </button>
             ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+            <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 16, padding: 12 }}>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>Taille personnalisée</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "end" }}>
+                <label>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Lignes</div>
+                  <input type="number" min={1} max={12} value={customPlan.rows} onChange={(e) => setCustomPlan((p) => ({ ...p, rows: clamp(Number(e.target.value) || 1, 1, 12) }))} style={inputStyle()} />
+                </label>
+                <label>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Colonnes</div>
+                  <input type="number" min={1} max={12} value={customPlan.cols} onChange={(e) => setCustomPlan((p) => ({ ...p, cols: clamp(Number(e.target.value) || 1, 1, 12) }))} style={inputStyle()} />
+                </label>
+                <button onClick={applyCustomPlan} style={buttonStyle("#2563eb")}>Appliquer</button>
+              </div>
+            </div>
+            <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 16, padding: 12 }}>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>Agrandir sans recommencer</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button onClick={() => expandPlan(1, 0)} style={softButton(false)}>+1 ligne</button>
+                <button onClick={() => expandPlan(2, 0)} style={softButton(false)}>+2 lignes</button>
+                <button onClick={() => expandPlan(0, 1)} style={softButton(false)}>+1 colonne</button>
+                <button onClick={() => expandPlan(0, 2)} style={softButton(false)}>+2 colonnes</button>
+              </div>
+            </div>
+            <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 16, padding: 12 }}>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>Lecture rapide</div>
+              <div style={{ color: "#475569", lineHeight: 1.5 }}>Format actuel : <strong>{activePotager.rows} × {activePotager.cols}</strong>. Plus le plan est grand, plus le scroll horizontal te laisse de la place pour concevoir sans écraser les cases.</div>
+            </div>
           </div>
         </div>
         {renderPlanGrid(false)}
@@ -935,105 +1060,178 @@ export default function App() {
   }
 
   function renderBuilder() {
-    return (
-      <Card title="🧩 Créateur de case" right={<div style={{ color: "#6b7280", fontSize: 13 }}>Créer → vérifier → poser</div>}>
-        <div style={{ display: "grid", gap: 12 }}>
-          <label>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Nom visible</div>
-            <input value={draftCase.label} onChange={(e) => setDraftCase((d) => ({ ...d, label: e.target.value }))} style={inputStyle()} />
-          </label>
+    const stepLabels = [
+      { step: 1, label: "Type" },
+      { step: 2, label: "Culture" },
+      { step: 3, label: "Exposition" },
+      { step: 4, label: "Placement" },
+    ];
+    const typeCards = ["plant", "greenhouse", "path", "wall", "tree", "terrace", "grass", "empty"];
+    const plantCards = ["tomate", "tomateCerise", "piment", "poivron", "salade", "basilic", "persil", "fleurs"];
 
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Type de case</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {Object.entries(zoneMeta).map(([key, value]) => (
+    return (
+      <Card title="🧩 Création guidée de case" right={<div style={{ color: "#6b7280", fontSize: 13 }}>1 clic → options → placement</div>}>
+        <div style={{ display: "grid", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${isMobile ? 2 : 4}, minmax(0, 1fr))`, gap: 8 }}>
+            {stepLabels.map((item) => {
+              const active = builderStep === item.step;
+              const disabled = draftCase.zoneType !== "plant" && item.step === 2;
+              return (
                 <button
-                  key={key}
-                  onClick={() => setDraftCase((d) => ({ ...d, zoneType: key, plant: key === "plant" ? d.plant : "vide", count: key === "plant" ? Math.max(1, d.count) : 0 }))}
-                  style={softButton(draftCase.zoneType === key)}
+                  key={item.step}
+                  disabled={disabled}
+                  onClick={() => !disabled && setBuilderStep(item.step)}
+                  style={{
+                    ...softButton(active),
+                    opacity: disabled ? 0.45 : 1,
+                    textAlign: "center",
+                  }}
                 >
-                  {value.icon} {value.label}
+                  {item.step}. {item.label}
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
 
-          {draftCase.zoneType === "plant" ? (
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 110px", gap: 12 }}>
+          {builderStep === 1 ? (
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ color: "#475569", lineHeight: 1.55 }}>Commence par cliquer le genre de case que tu veux préparer. Ensuite l'assistant te guide pas à pas avant la pose sur le plan.</div>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))", gap: 10 }}>
+                {typeCards.map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => startDraftFlow(key)}
+                    style={{ textAlign: "left", background: "#fff", border: draftCase.zoneType === key ? "2px solid #111827" : "1px solid #d1d5db", borderRadius: 16, padding: 14, cursor: "pointer" }}
+                  >
+                    <div style={{ fontSize: 28 }}>{zoneMeta[key].icon}</div>
+                    <div style={{ fontWeight: 800, marginTop: 8 }}>{zoneMeta[key].label}</div>
+                    <div style={{ marginTop: 6, color: "#64748b", lineHeight: 1.45, fontSize: 13 }}>
+                      {key === "plant" ? "Tomates, salades, aromatiques, fleurs." : key === "greenhouse" ? "Pour matérialiser la serre ou une zone chaude." : key === "path" ? "Allée ou passage." : key === "wall" ? "Mur, clôture, support chaud." : key === "tree" ? "Zone d'ombre ou arbre." : key === "terrace" ? "Terrasse ou dalle." : key === "grass" ? "Pelouse ou zone non cultivée." : "Slot vide à garder libre."}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {builderStep === 2 && draftCase.zoneType === "plant" ? (
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ color: "#475569", lineHeight: 1.55 }}>Choisis la culture principale, puis ajuste la quantité. L'ambiance recommandée se met déjà au plus logique.</div>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))", gap: 10 }}>
+                {plantCards.map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => setDraftCase((d) => ({
+                      ...d,
+                      plant: key,
+                      label: d.label === "Nouvelle culture" || d.label === "Nouvelle case" ? plants[key].name : d.label,
+                      exposureTag: recommendedExposureForPlant(key),
+                    }))}
+                    style={{ textAlign: "left", background: "#fff", border: draftCase.plant === key ? "2px solid #111827" : "1px solid #d1d5db", borderRadius: 16, padding: 14, cursor: "pointer" }}
+                  >
+                    <div style={{ fontSize: 28 }}>{plants[key].icon}</div>
+                    <div style={{ fontWeight: 800, marginTop: 8 }}>{plants[key].name}</div>
+                    <div style={{ marginTop: 6, color: "#64748b", fontSize: 13 }}>Exposition conseillée : {recommendedExposureForPlant(key)}</div>
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 110px 110px", gap: 10 }}>
+                <label>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Nom visible</div>
+                  <input value={draftCase.label} onChange={(e) => setDraftCase((d) => ({ ...d, label: e.target.value }))} style={inputStyle()} />
+                </label>
+                <button onClick={() => setDraftCase((d) => ({ ...d, count: Math.max(1, d.count - 1) }))} style={softButton(false)}>-1 plant</button>
+                <button onClick={() => setDraftCase((d) => ({ ...d, count: d.count + 1 }))} style={softButton(false)}>+1 plant</button>
+              </div>
+            </div>
+          ) : null}
+
+          {builderStep === 3 ? (
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ color: "#475569", lineHeight: 1.55 }}>On définit maintenant le soleil, l'ambiance et une petite note. L'idée est d'arriver à une case simple, claire et prête à poser.</div>
               <label>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Culture</div>
-                <select value={draftCase.plant} onChange={(e) => setDraftCase((d) => ({ ...d, plant: e.target.value, exposureTag: recommendedExposureForPlant(e.target.value) }))} style={inputStyle()}>
-                  {Object.keys(plants).filter((key) => key !== "vide").map((key) => (
-                    <option key={key} value={key}>{plants[key].icon} {plants[key].name}</option>
-                  ))}
-                </select>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Nom visible</div>
+                <input value={draftCase.label} onChange={(e) => setDraftCase((d) => ({ ...d, label: e.target.value }))} style={inputStyle()} />
               </label>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Soleil déclaré</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
+                    {[0, 1, 2, 3].map((n) => (
+                      <button key={n} onClick={() => setDraftCase((d) => ({ ...d, sunBase: n }))} style={softButton(draftCase.sunBase === n)}>☀ {n}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Ambiance</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                    {exposureOptions.map((option) => (
+                      <button key={option.key} onClick={() => setDraftCase((d) => ({ ...d, exposureTag: option.key }))} style={softButton(draftCase.exposureTag === option.key)}>{option.label}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {draftCase.zoneType === "plant" ? (
+                <label>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Quantité</div>
+                  <input type="number" min={1} value={draftCase.count} onChange={(e) => setDraftCase((d) => ({ ...d, count: Math.max(1, Number(e.target.value) || 1) }))} style={inputStyle()} />
+                </label>
+              ) : null}
               <label>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Qté</div>
-                <input type="number" min={1} value={draftCase.count} onChange={(e) => setDraftCase((d) => ({ ...d, count: Math.max(1, Number(e.target.value) || 1) }))} style={inputStyle()} />
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Note</div>
+                <textarea value={draftCase.note} onChange={(e) => setDraftCase((d) => ({ ...d, note: e.target.value }))} style={areaStyle()} placeholder="Exemple : près du mur, zone très chaude, accès facile..." />
               </label>
             </div>
           ) : null}
 
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
-            <label>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Soleil déclaré</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
-                {[0, 1, 2, 3].map((n) => (
-                  <button key={n} onClick={() => setDraftCase((d) => ({ ...d, sunBase: n }))} style={softButton(draftCase.sunBase === n)}>☀ {n}</button>
-                ))}
-              </div>
-            </label>
-            <label>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Ambiance</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
-                {exposureOptions.map((option) => (
-                  <button key={option.key} onClick={() => setDraftCase((d) => ({ ...d, exposureTag: option.key }))} style={softButton(draftCase.exposureTag === option.key)}>{option.label}</button>
-                ))}
-              </div>
-            </label>
-          </div>
-
-          <label>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Note</div>
-            <textarea value={draftCase.note} onChange={(e) => setDraftCase((d) => ({ ...d, note: e.target.value }))} style={areaStyle()} placeholder="Exemple : près du mur, zone très chaude, accès facile..." />
-          </label>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginTop: 14 }}>
-          <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 18, padding: 14 }}>
-            <div style={{ fontWeight: 800, marginBottom: 8 }}>Case lisible avant placement</div>
-            <PlanCell cell={{ ...draftCase, id: "preview", slotIndex: 0 }} index={0} compact={true} allowSuggestion={false} onClick={() => {}} onDoubleClick={() => {}} />
-          </div>
-          <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 18, padding: 14 }}>
-            <div style={{ fontWeight: 800, marginBottom: 8 }}>Conseil IA pendant la création</div>
-            <div style={{ display: "grid", gap: 8 }}>
-              {draftAdvice.length ? draftAdvice.map((item, i) => (
-                <div key={i} style={{ background: "#fff", borderRadius: 12, padding: "10px 12px", lineHeight: 1.5 }}>{item}</div>
-              )) : <div style={{ color: "#475569" }}>Choisis une plante ou un type de case pour obtenir un conseil.</div>}
-            </div>
-            <button onClick={() => { setPlacementMode(true); if (isMobile) setMobileTab("plan"); }} style={{ ...buttonStyle("#2563eb"), width: "100%", marginTop: 12 }}>Je place cette case sur le plan</button>
-          </div>
-        </div>
-
-        <div style={{ marginTop: 16, background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 18, padding: 14 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-            <div style={{ fontWeight: 800 }}>Suggestion de placement case par case</div>
-            <div style={{ color: "#64748b", fontSize: 13 }}>Les meilleures zones sont classées selon soleil, côté chaud, ombre, vent et météo.</div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 10 }}>
-            {bestSuggestions.map((item) => {
-              const badge = placementBadge(item.result.level);
-              return (
-                <button key={item.index} onClick={() => { setPlacementMode(true); placeDraftAt(item.index); if (isMobile) setMobileTab("plan"); }} style={{ textAlign: "left", background: "#fff", border: "1px solid #dbeafe", borderRadius: 14, padding: 12, cursor: "pointer" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                    <strong>Slot #{item.index + 1}</strong>
-                    <span style={{ background: badge.bg, color: badge.color, borderRadius: 999, padding: "4px 8px", fontWeight: 800, fontSize: 12 }}>{badge.label}</span>
+          {builderStep === 4 ? (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
+                <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 18, padding: 14 }}>
+                  <div style={{ fontWeight: 800, marginBottom: 8 }}>Case prête à poser</div>
+                  <PlanCell cell={{ ...draftCase, id: "preview", slotIndex: 0 }} index={0} compact={true} allowSuggestion={false} onClick={() => {}} onDoubleClick={() => {}} />
+                </div>
+                <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 18, padding: 14 }}>
+                  <div style={{ fontWeight: 800, marginBottom: 8 }}>Conseil IA pendant la création</div>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {draftAdvice.length ? draftAdvice.map((item, i) => (
+                      <div key={i} style={{ background: "#fff", borderRadius: 12, padding: "10px 12px", lineHeight: 1.5 }}>{item}</div>
+                    )) : <div style={{ color: "#475569" }}>Choisis une plante ou un type de case pour obtenir un conseil.</div>}
                   </div>
-                  <div style={{ marginTop: 8, color: "#475569", lineHeight: 1.45 }}>{item.result.reasons.join(" • ")}</div>
-                </button>
-              );
-            })}
+                  <button onClick={() => { setPlacementMode(true); if (isMobile) setMobileTab("plan"); }} style={{ ...buttonStyle("#2563eb"), width: "100%", marginTop: 12 }}>Je passe au placement sur le plan</button>
+                </div>
+              </div>
+
+              <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 18, padding: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+                  <div style={{ fontWeight: 800 }}>Suggestion de placement case par case</div>
+                  <div style={{ color: "#64748b", fontSize: 13 }}>Clique un slot conseillé pour poser directement la case.</div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+                  {bestSuggestions.map((item) => {
+                    const badge = placementBadge(item.result.level);
+                    return (
+                      <button key={item.index} onClick={() => { setPlacementMode(true); placeDraftAt(item.index); if (isMobile) setMobileTab("plan"); }} style={{ textAlign: "left", background: "#fff", border: "1px solid #dbeafe", borderRadius: 14, padding: 12, cursor: "pointer" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                          <strong>Slot #{item.index + 1}</strong>
+                          <span style={{ background: badge.bg, color: badge.color, borderRadius: 999, padding: "4px 8px", fontWeight: 800, fontSize: 12 }}>{badge.label}</span>
+                        </div>
+                        <div style={{ marginTop: 8, color: "#475569", lineHeight: 1.45 }}>{item.result.reasons.join(" • ")}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          ) : null}
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ color: "#64748b", fontSize: 13 }}>Étape actuelle : <strong>{stepLabels.find((x) => x.step === builderStep)?.label}</strong></div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button onClick={() => { setDraftCase(createDraft()); setBuilderStep(1); }} style={softButton(false)}>Repartir</button>
+              {builderStep > 1 ? <button onClick={prevBuilderStep} style={softButton(false)}>Retour</button> : null}
+              {builderStep < 4 ? <button onClick={nextBuilderStep} style={buttonStyle("#2563eb")}>Continuer</button> : null}
+            </div>
           </div>
         </div>
       </Card>
