@@ -49,12 +49,12 @@ function useLocalStorageState(key, initialValue) {
 
 function shell(extra = {}) {
   return {
-    background: "linear-gradient(180deg, rgba(8,14,34,0.70), rgba(5,9,22,0.84))",
+    background: "linear-gradient(180deg, rgba(8,14,34,0.52), rgba(5,9,22,0.70))",
     border: "1px solid rgba(182,204,255,0.13)",
     borderRadius: 22,
-    boxShadow: "0 22px 80px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.05)",
-    backdropFilter: "blur(14px)",
-    WebkitBackdropFilter: "blur(14px)",
+    boxShadow: "0 30px 90px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
     ...extra,
   };
 }
@@ -273,7 +273,15 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
   }
 
   return (
-    <div style={shell({ padding: 18, boxShadow: "0 32px 90px rgba(0,0,0,0.42), 0 0 60px rgba(90,120,255,0.06), inset 0 1px 0 rgba(255,255,255,0.06)" })}>
+    <div
+      style={shell({
+        padding: 18,
+        background:
+          "linear-gradient(180deg, rgba(8,14,34,0.42), rgba(5,9,22,0.58))",
+        boxShadow:
+          "0 34px 104px rgba(0,0,0,0.24), 0 0 40px rgba(90,120,255,0.04), inset 0 1px 0 rgba(255,255,255,0.05)",
+      })}
+    >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div style={{ width: 36 }} />
         <div style={{ flex: 1, textAlign: "center", ...titleCaps(20), letterSpacing: 4.2 }}>MON POTAGER</div>
@@ -292,7 +300,7 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
             borderRadius: 18,
             overflow: "hidden",
             border: "1px solid rgba(182,204,255,0.11)",
-            background: "linear-gradient(180deg, rgba(14,20,44,0.18), rgba(7,10,20,0.30))",
+            background: "linear-gradient(180deg, rgba(14,20,44,0.10), rgba(7,10,20,0.18))",
             boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.02)",
           }}
         >
@@ -305,7 +313,7 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
           <Hotspot title="Statut" onClick={() => onOpenPanel("status")} style={{ left: "61.4%", top: "69%", width: 90, height: 76 }} />
         </div>
 
-        <div style={shell({ padding: 14, width: 246 })}>
+        <div style={shell({ padding: 14, width: 246, background: "linear-gradient(180deg, rgba(10,16,38,0.44), rgba(6,10,24,0.58))" })}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
             <div style={{ width: 14, height: 14, borderRadius: "50%", background: "rgba(255,255,255,0.90)", boxShadow: "0 0 10px rgba(255,255,255,0.26)" }} />
             <span style={titleCaps(13)}>Zone actuelle</span>
@@ -463,7 +471,7 @@ function FloatingWindow({ win, isActive, onFocus, onClose, onMinimize, onMove, o
         ...shell({
           overflow: "hidden",
           boxShadow: isActive
-            ? "0 28px 90px rgba(0,0,0,0.42), 0 0 36px rgba(96,120,255,0.10), inset 0 1px 0 rgba(255,255,255,0.06)"
+            ? "0 40px 120px rgba(0,0,0,0.30), 0 0 34px rgba(96,120,255,0.08), inset 0 1px 0 rgba(255,255,255,0.06)"
             : "0 18px 60px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.04)",
         }),
       }}
@@ -637,10 +645,10 @@ function createWindow(mode, existingCount) {
     id: crypto.randomUUID(),
     mode,
     title: titleMap[mode] || "Fenêtre",
-    x: mode === "home" ? 110 : 220 + existingCount * 26,
-    y: mode === "home" ? 86 : 120 + existingCount * 22,
-    width: mode === "home" ? 980 : mode === "pots" ? 430 : 420,
-    height: mode === "home" ? 610 : mode === "pots" ? 380 : 340,
+    x: mode === "home" ? 140 : 250 + existingCount * 28,
+    y: mode === "home" ? 94 : 138 + existingCount * 24,
+    width: mode === "home" ? 880 : mode === "pots" ? 430 : 420,
+    height: mode === "home" ? 560 : mode === "pots" ? 380 : 340,
     minimized: false,
     closed: false,
   };
