@@ -483,7 +483,9 @@ export default function App() {
 
   const todayLine = useMemo(() => {
     if (state.pendingPotIds.length) return `${state.pendingPotIds.length} pot(s) à placer`;
-    if (selectedCell?.crop !== "none") return `Observer ${crops[selectedCell.crop].label.toLowerCase()} sur la case active`;
+    if (selectedCell && selectedCell.crop !== "none") {
+      return `Observer ${crops[selectedCell.crop].label.toLowerCase()} sur la case active`;
+    }
     if (state.liveWeather.wind >= 30) return "Vent fort : attention aux jeunes plants";
     return "Plan prêt pour conception et placement";
   }, [state.pendingPotIds.length, selectedCell, state.liveWeather.wind]);
