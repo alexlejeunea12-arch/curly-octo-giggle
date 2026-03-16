@@ -322,22 +322,22 @@ function serializeState(state) {
 function buildGradientBackground() {
   return {
     background: `
-      radial-gradient(circle at 12% 18%, rgba(255, 174, 188, 0.25), transparent 22%),
-      radial-gradient(circle at 86% 22%, rgba(120, 119, 255, 0.30), transparent 24%),
-      radial-gradient(circle at 48% 78%, rgba(255, 212, 126, 0.18), transparent 26%),
-      linear-gradient(135deg, #101223 0%, #1b2651 28%, #5a2a7f 58%, #f06f83 82%, #ffd0a8 100%)
+      radial-gradient(circle at 14% 18%, rgba(255, 182, 193, 0.22), transparent 20%),
+      radial-gradient(circle at 84% 18%, rgba(104, 118, 255, 0.28), transparent 24%),
+      radial-gradient(circle at 56% 74%, rgba(255, 208, 145, 0.15), transparent 25%),
+      linear-gradient(135deg, #0a1120 0%, #182440 24%, #35245f 48%, #7b376e 72%, #f09a88 100%)
     `,
   };
 }
 
 function glassCardStyle(heavy = false) {
   return {
-    background: heavy ? "rgba(16, 18, 35, 0.62)" : "rgba(18, 22, 42, 0.46)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
+    background: heavy ? "rgba(10, 14, 28, 0.72)" : "rgba(14, 18, 34, 0.52)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
     border: "1px solid rgba(255,255,255,0.14)",
     borderRadius: 24,
-    boxShadow: "0 16px 60px rgba(0,0,0,0.22)",
+    boxShadow: "0 18px 70px rgba(0,0,0,0.24)",
   };
 }
 
@@ -385,11 +385,12 @@ function fieldStyle() {
     width: "100%",
     borderRadius: 14,
     border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.08)",
+    background: "rgba(7, 11, 23, 0.68)",
     color: "white",
     padding: "11px 12px",
     outline: "none",
     boxSizing: "border-box",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
   };
 }
 
@@ -1606,16 +1607,32 @@ export default function App() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        color: "white",
-        fontFamily: "Inter, Arial, sans-serif",
-        padding: isMobile ? 12 : 18,
-        boxSizing: "border-box",
-        ...buildGradientBackground(),
-      }}
-    >
+    <>
+      <style>{`
+        .potager-v32 select {
+          color: #ffffff;
+        }
+        .potager-v32 select option,
+        .potager-v32 select optgroup {
+          color: #111827;
+          background: #ffffff;
+        }
+        .potager-v32 input::placeholder,
+        .potager-v32 textarea::placeholder {
+          color: rgba(255,255,255,0.46);
+        }
+      `}</style>
+      <div
+        className="potager-v32"
+        style={{
+          minHeight: "100vh",
+          color: "white",
+          fontFamily: "Inter, Arial, sans-serif",
+          padding: isMobile ? 12 : 18,
+          boxSizing: "border-box",
+          ...buildGradientBackground(),
+        }}
+      >
       <div style={{ maxWidth: 1700, margin: "0 auto", display: "grid", gap: 16 }}>
         {renderTopHero()}
 
@@ -1682,7 +1699,8 @@ export default function App() {
         onClose={() => setField({ contextMenu: null })}
         onChoose={handleContextAction}
       />
-    </div>
+      </div>
+    </>
   );
 }
 
