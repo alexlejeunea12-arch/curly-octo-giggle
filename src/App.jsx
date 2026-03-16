@@ -49,12 +49,12 @@ function useLocalStorageState(key, initialValue) {
 
 function shell(extra = {}) {
   return {
-    background: "linear-gradient(180deg, rgba(8,14,34,0.52), rgba(5,9,22,0.70))",
-    border: "1px solid rgba(182,204,255,0.13)",
+    background: "linear-gradient(180deg, rgba(8,14,34,0.34), rgba(5,9,22,0.52))",
+    border: "1px solid rgba(182,204,255,0.11)",
     borderRadius: 22,
-    boxShadow: "0 30px 90px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 28px 90px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.04)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
     ...extra,
   };
 }
@@ -277,9 +277,9 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
       style={shell({
         padding: 18,
         background:
-          "linear-gradient(180deg, rgba(8,14,34,0.42), rgba(5,9,22,0.58))",
+          "linear-gradient(180deg, rgba(8,14,34,0.24), rgba(5,9,22,0.42))",
         boxShadow:
-          "0 34px 104px rgba(0,0,0,0.24), 0 0 40px rgba(90,120,255,0.04), inset 0 1px 0 rgba(255,255,255,0.05)",
+          "0 26px 92px rgba(0,0,0,0.18), 0 0 30px rgba(90,120,255,0.03), inset 0 1px 0 rgba(255,255,255,0.05)",
       })}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
@@ -313,7 +313,7 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
           <Hotspot title="Statut" onClick={() => onOpenPanel("status")} style={{ left: "61.4%", top: "69%", width: 90, height: 76 }} />
         </div>
 
-        <div style={shell({ padding: 14, width: 246, background: "linear-gradient(180deg, rgba(10,16,38,0.44), rgba(6,10,24,0.58))" })}>
+        <div style={shell({ padding: 14, width: 246, background: "linear-gradient(180deg, rgba(10,16,38,0.24), rgba(6,10,24,0.40))" })}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
             <div style={{ width: 14, height: 14, borderRadius: "50%", background: "rgba(255,255,255,0.90)", boxShadow: "0 0 10px rgba(255,255,255,0.26)" }} />
             <span style={titleCaps(13)}>Zone actuelle</span>
@@ -583,11 +583,50 @@ function CreateCaseModal({ openAt, onClose, onSave }) {
 function renderWindowContent(mode, cases) {
   const texts = {
     zone: "Lecture de la zone sélectionnée. Ici on branchera plus tard les vraies actions contextuelles.",
-    plan: "Espace dédié au plan. On le détaillera ensuite avec tes vrais placements, cases et outils.",
     suggestion: "Déplacer 3 pots vers la zone Est et garder la zone chaude pour les piments.",
     today: "Tailler les fraises, surveiller l’humidité du matin et vérifier la lumière des semis prioritaires.",
     status: `Enregistré • ${cases.length} case(s) • restauration locale active.`,
   };
+
+  if (mode === "plan") {
+    return (
+      <div style={{ display: "grid", gap: 14, height: "100%" }}>
+        <div style={soft({ padding: 16, background: "linear-gradient(180deg, rgba(10,16,38,0.26), rgba(6,10,24,0.38))" })}>
+          <div style={{ ...titleCaps(14), marginBottom: 8 }}>Plan isolé du potager</div>
+          <div style={{ color: "rgba(232,238,255,0.72)", lineHeight: 1.6 }}>
+            Cette fenêtre doit devenir l’espace dédié au plan, indépendant de l’accueil, pour travailler les cases, les pots et la disposition générale.
+          </div>
+        </div>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 320,
+            borderRadius: 20,
+            border: "1px solid rgba(182,204,255,0.12)",
+            background: "linear-gradient(180deg, rgba(10,16,34,0.22), rgba(6,10,22,0.34))",
+            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.03)",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <div style={{ position: "absolute", inset: 18, borderRadius: 18, border: "1px solid rgba(181,202,255,0.14)", background: "linear-gradient(180deg, rgba(8,12,24,0.14), rgba(8,12,24,0.04))" }} />
+          <div style={{ position: "absolute", left: "9%", top: "12%", width: "70%", height: "62%", borderRadius: 18, border: "1px solid rgba(181,202,255,0.18)", background: "rgba(10,16,30,0.08)" }} />
+          <div style={{ position: "absolute", right: "7%", top: "14%", width: "11%", height: "14%", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }} />
+          <div style={{ position: "absolute", left: "14%", top: "20%", width: "14%", height: "16%", borderRadius: 12, background: "rgba(120,190,120,0.18)", border: "1px solid rgba(170,225,170,0.18)" }} />
+          <div style={{ position: "absolute", left: "31%", top: "20%", width: "12%", height: "16%", borderRadius: 12, background: "rgba(160,130,220,0.16)", border: "1px solid rgba(200,185,255,0.16)" }} />
+          <div style={{ position: "absolute", left: "46%", top: "20%", width: "14%", height: "16%", borderRadius: 12, background: "rgba(120,190,120,0.18)", border: "1px solid rgba(170,225,170,0.18)" }} />
+          <div style={{ position: "absolute", left: "14%", top: "40%", width: "14%", height: "15%", borderRadius: 12, background: "rgba(120,190,120,0.18)", border: "1px solid rgba(170,225,170,0.18)" }} />
+          <div style={{ position: "absolute", left: "31%", top: "40%", width: "12%", height: "15%", borderRadius: 12, background: "rgba(255,176,112,0.14)", border: "1px solid rgba(255,210,156,0.14)" }} />
+          <div style={{ position: "absolute", left: "46%", top: "40%", width: "14%", height: "15%", borderRadius: 12, background: "rgba(160,130,220,0.16)", border: "1px solid rgba(200,185,255,0.16)" }} />
+          <div style={{ position: "absolute", left: 26, bottom: 28, display: "flex", gap: 10 }}>
+            {[0, 1, 2].map((i) => (
+              <div key={i} style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(255,215,140,0.72)", boxShadow: "0 0 12px rgba(255,215,140,0.18)" }} />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (mode === "pots") {
     return (
