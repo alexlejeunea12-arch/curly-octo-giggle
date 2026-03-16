@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 const CITY = "Saint-Germain-lès-Arpajon (91180)";
 const LAT = 48.616;
 const LON = 2.258;
-const STORAGE = "potager_v231_widget_context_save";
+const STORAGE = "potager_v232_widgets_vivants";
 const MANUAL_SAVE_STORAGE = `${STORAGE}_manual`;
 
 const structures = {
@@ -440,6 +440,73 @@ function getPlacementAdvice({ cell, index, plan, weather }) {
   return `${plant.name} : emplacement correct, surveille surtout l’arrosage et la reprise.`;
 }
 
+
+function getCellLiveState({ cell, index, plan, weather }) {
+  const lateCount = (cell.reminders || []).filter(isLateReminder).length;
+  const todayCount = (cell.reminders || []).filter(isTodayReminder).length;
+  if (lateCount > 0) {
+    return {
+      key: "late",
+      label: `${lateCount} rappel(s) en retard`,
+      dot: "#ef4444",
+      glow: "0 0 0 1px rgba(239,68,68,0.20), 0 12px 24px rgba(239,68,68,0.16)",
+      ribbon: "rgba(239,68,68,0.95)",
+    };
+  }
+  if (todayCount > 0) {
+    return {
+      key: "today",
+      label: `${todayCount} rappel(s) aujourd’hui`,
+      dot: "#f59e0b",
+      glow: "0 0 0 1px rgba(245,158,11,0.18), 0 10px 20px rgba(245,158,11,0.14)",
+      ribbon: "rgba(245,158,11,0.92)",
+    };
+  }
+  if (cell.plant && weather?.windspeed >= 35 && ["tomate", "tomateCerise", "poivron", "piment"].includes(cell.plant)) {
+    return {
+      key: "wind",
+      label: "Vigilance vent",
+      dot: "#8b5cf6",
+      glow: "0 0 0 1px rgba(139,92,246,0.16), 0 10px 20px rgba(139,92,246,0.12)",
+      ribbon: "rgba(139,92,246,0.90)",
+    };
+  }
+  if (cell.plant && weather?.temperature >= 28 && cell.sun >= 2) {
+    return {
+      key: "heat",
+      label: "Surveiller l’arrosage",
+      dot: "#f97316",
+      glow: "0 0 0 1px rgba(249,115,22,0.16), 0 10px 20px rgba(249,115,22,0.12)",
+      ribbon: "rgba(249,115,22,0.90)",
+    };
+  }
+  if (cell.plant && plants[cell.plant] && cell.sun < plants[cell.plant].sunNeed) {
+    return {
+      key: "sun",
+      label: "Soleil limite",
+      dot: "#0ea5e9",
+      glow: "0 0 0 1px rgba(14,165,233,0.16), 0 10px 20px rgba(14,165,233,0.12)",
+      ribbon: "rgba(14,165,233,0.88)",
+    };
+  }
+  if (cell.plant) {
+    return {
+      key: "ok",
+      label: "Situation stable",
+      dot: "#22c55e",
+      glow: "0 6px 16px rgba(15,23,42,0.08)",
+      ribbon: "rgba(34,197,94,0.88)",
+    };
+  }
+  return {
+    key: "neutral",
+    label: "Case structurelle",
+    dot: "#94a3b8",
+    glow: "0 6px 16px rgba(15,23,42,0.06)",
+    ribbon: "rgba(148,163,184,0.82)",
+  };
+}
+
 // Repère 2/6 — composant principal, état, persistance
 export default function App() {
   const initial = getInitialState();
@@ -455,7 +522,6 @@ export default function App() {
   const [focusOnlyPlan, setFocusOnlyPlan] = useState(true);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [showPlanControls, setShowPlanControls] = useState(false);
-  const [showWidgets, setShowWidgets] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState(() => safeRead(`${MANUAL_SAVE_STORAGE}_meta`, ""));
   const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null });
@@ -834,6 +900,69 @@ export default function App() {
       .slice(0, 6);
   }, [stats]);
 
+  const liveCounts = useMemo(() => {
+    if (!activePlan) return { late: 0, today: 0, stable: 0 };
+    let late = 0;
+    let today = 0;
+    let stable = 0;
+    activePlan.cells.forEach((cell, index) => {
+      const state = getCellLiveState({ cell, index, plan: activePlan, weather });
+      if (state.key === "late") late += 1;
+      else if (state.key === "today") today += 1;
+      else if (state.key === "ok") stable += 1;
+    });
+    return { late, today, stable };
+  }, [activePlan, weather]);
+
+  const nextReminder = useMemo(() => {
+    return allReminders.find((reminder) => !reminder.done) || null;
+  }, [allReminders]);
+
+  const topLiveAdvice = useMemo(() => {
+    if (selectedAdvice) return selectedAdvice;
+    if (alerts[0]) return alerts[0];
+    if (weather?.temperature >= 28) return "Chaleur marquée : surveille surtout les zones les plus exposées.";
+    if (weather?.windspeed >= 35) return "Vent fort : les cultures hautes méritent un œil rapide.";
+    return "Le plan est calme : construis, puis valide tes actions pour déclencher les rappels intelligents.";
+  }, [selectedAdvice, alerts, weather]);
+
+  const liveBarItems = useMemo(() => {
+    return [
+      {
+        key: "weather",
+        icon: weather?.temperature >= 28 ? "🔥" : weather?.windspeed >= 35 ? "💨" : "🌤️",
+        title: "Météo",
+        text: weather ? `${weather.temperature}°C • ${weather.windspeed} km/h` : "indisponible",
+        tone: weather?.temperature >= 28 ? "#f97316" : weather?.windspeed >= 35 ? "#8b5cf6" : "#0ea5e9",
+      },
+      {
+        key: "reminders",
+        icon: liveCounts.late > 0 ? "⏰" : liveCounts.today > 0 ? "📌" : "✅",
+        title: "Suivi",
+        text: liveCounts.late > 0
+          ? `${liveCounts.late} case(s) en retard`
+          : liveCounts.today > 0
+          ? `${liveCounts.today} case(s) à faire`
+          : "rien d’urgent",
+        tone: liveCounts.late > 0 ? "#ef4444" : liveCounts.today > 0 ? "#f59e0b" : "#22c55e",
+      },
+      {
+        key: "save",
+        icon: dirty ? "📝" : "💾",
+        title: "Sauvegarde",
+        text: dirty ? "modifs non sauvegardées" : lastSavedAt ? `sauvé à ${lastSavedAt}` : "sauvegardé",
+        tone: dirty ? "#f59e0b" : "#22c55e",
+      },
+      {
+        key: "advice",
+        icon: "🧠",
+        title: "Conseil IA",
+        text: small(topLiveAdvice, isMobile ? 40 : 62),
+        tone: "#111827",
+      },
+    ];
+  }, [weather, liveCounts, dirty, lastSavedAt, topLiveAdvice, isMobile]);
+
   function quickFill(index, structureKey) {
     updateCell(index, (cell) => ({
       ...cell,
@@ -874,6 +1003,7 @@ export default function App() {
     const isSelected = selectedIndex === index;
     const structure = structures[cell.structure];
     const plant = cell.plant ? plants[cell.plant] : null;
+    const liveState = getCellLiveState({ cell, index, plan: activePlan, weather });
     const borderColor = isSelected ? "#111827" : structure.border;
     const contentColor = plant?.color || structure.border;
     return (
@@ -882,25 +1012,27 @@ export default function App() {
         onClick={() => selectCell(index)}
         onDoubleClick={(event) => openCellEditor(index, event)}
         onContextMenu={(event) => openContextMenu(index, event)}
-        title={`${structure.label}${plant ? ` • ${plant.name}` : ""}`}
+        title={`${structure.label}${plant ? ` • ${plant.name}` : ""} • ${liveState.label}`}
         style={{
           width: cellSize,
           height: cellSize,
-          borderRadius: 12,
+          borderRadius: 14,
           border: `1.5px solid ${borderColor}`,
-          background: `linear-gradient(180deg, rgba(255,255,255,0.92) 0%, ${structure.color} 100%)`,
+          background: `linear-gradient(180deg, rgba(255,255,255,0.98) 0%, ${structure.color} 100%)`,
           position: "relative",
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           padding: 0,
-          boxShadow: isSelected ? "0 0 0 2px rgba(17,24,39,0.15), 0 8px 20px rgba(15,23,42,0.12)" : "0 4px 10px rgba(15,23,42,0.05)",
+          boxShadow: isSelected
+            ? "0 0 0 2px rgba(17,24,39,0.18), 0 16px 30px rgba(15,23,42,0.16)"
+            : liveState.glow,
           overflow: "hidden",
           transition: "transform 0.12s ease, box-shadow 0.12s ease",
         }}
       >
-        <div style={{ position: "absolute", inset: 0, opacity: cell.structure === "wall" ? 0.22 : 0.12 }}>
+        <div style={{ position: "absolute", inset: 0, opacity: cell.structure === "wall" ? 0.22 : 0.11 }}>
           {cell.structure === "path" ? (
             <div style={{ width: "100%", height: "100%", background: "repeating-linear-gradient(135deg, rgba(0,0,0,0.06) 0 6px, transparent 6px 12px)" }} />
           ) : null}
@@ -915,7 +1047,7 @@ export default function App() {
           ) : null}
         </div>
 
-        <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 6, background: structure.border, opacity: 0.9, zIndex: 1 }} />
+        <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 6, background: liveState.ribbon, zIndex: 1 }} />
 
         {plant ? (
           <div
@@ -923,20 +1055,36 @@ export default function App() {
               width: Math.max(20, cellSize - 28),
               height: Math.max(20, cellSize - 28),
               borderRadius: 999,
-              background: "rgba(255,255,255,0.96)",
+              background: "rgba(255,255,255,0.97)",
               border: `1px solid ${contentColor}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontSize: Math.max(14, cellSize * 0.34),
               zIndex: 1,
+              boxShadow: "0 6px 12px rgba(15,23,42,0.10)",
             }}
           >
             {plant.icon}
           </div>
         ) : (
-          <div style={{ fontSize: Math.max(10, cellSize * 0.22), opacity: 0.6, zIndex: 1 }}>{structure.icon}</div>
+          <div style={{ fontSize: Math.max(10, cellSize * 0.22), opacity: 0.72, zIndex: 1 }}>{structure.icon}</div>
         )}
+
+        <div
+          style={{
+            position: "absolute",
+            right: 4,
+            top: 4,
+            width: 12,
+            height: 12,
+            borderRadius: 999,
+            background: liveState.dot,
+            border: "2px solid rgba(255,255,255,0.95)",
+            boxShadow: `0 0 0 3px ${liveState.dot}22`,
+            zIndex: 3,
+          }}
+        />
 
         {cell.count > 0 ? (
           <div
@@ -972,7 +1120,7 @@ export default function App() {
               height: 14,
               borderRadius: 999,
               background: ["#64748b", "#93c5fd", "#fcd34d", "#f59e0b"][cell.sun] || "#fcd34d",
-              border: "1px solid rgba(255,255,255,0.9)",
+              border: "1px solid rgba(255,255,255,0.95)",
               zIndex: 2,
             }}
           />
@@ -1246,8 +1394,8 @@ export default function App() {
           }}
         >
           <div>
-            <h1 style={{ margin: 0, fontSize: isMobile ? 28 : 38 }}>🌱 Assistant Potager 2.3</h1>
-            <div style={{ color: "#4b5563", marginTop: 6 }}>Plan minimaliste • micro-cases • structure + culture séparées • édition directe sur la case</div>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 28 : 38 }}>🌱 Assistant Potager 2.3.2</h1>
+            <div style={{ color: "#4b5563", marginTop: 6 }}>Widgets vivants • plan plus beau • signaux sur les cases • édition directe sur la case</div>
           </div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1266,7 +1414,7 @@ export default function App() {
           ))}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : focusOnlyPlan && !showWidgets && tab === "plan" ? "1fr" : "minmax(860px, 1fr) 390px", gap: 18, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : focusOnlyPlan && tab === "plan" ? "1fr" : "minmax(860px, 1fr) 390px", gap: 18, alignItems: "start" }}>
           <div style={{ display: "grid", gap: 16 }}>
             <Card
               title="🗺 Plan"
@@ -1274,9 +1422,6 @@ export default function App() {
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button onClick={() => setFocusOnlyPlan((v) => !v)} style={softButton(focusOnlyPlan)}>
                     {focusOnlyPlan ? "Plan seul" : "Plan + panneaux"}
-                  </button>
-                  <button onClick={() => setShowWidgets((v) => !v)} style={softButton(showWidgets)}>
-                    Widgets
                   </button>
                   <button onClick={() => setShowPlanControls((v) => !v)} style={softButton(showPlanControls)}>
                     Outils
@@ -1311,6 +1456,35 @@ export default function App() {
                   </div>
                   {lastSavedAt ? <div style={{ color: "#64748b", fontSize: 13 }}>Dernière sauvegarde : {lastSavedAt}</div> : null}
                   <div style={{ color: "#64748b", fontSize: 13 }}>Clic = sélectionner • double clic = éditer • clic droit = menu rapide</div>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, minmax(0, 1fr))",
+                    gap: 8,
+                  }}
+                >
+                  {liveBarItems.map((item) => (
+                    <div
+                      key={item.key}
+                      style={{
+                        background: "#ffffff",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 16,
+                        padding: 12,
+                        display: "grid",
+                        gap: 4,
+                        boxShadow: `0 8px 18px ${item.tone}14`,
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                        <div style={{ fontWeight: 800, fontSize: 13 }}>{item.icon} {item.title}</div>
+                        <div style={{ width: 10, height: 10, borderRadius: 999, background: item.tone }} />
+                      </div>
+                      <div style={{ color: "#334155", fontSize: 13, lineHeight: 1.45 }}>{item.text}</div>
+                    </div>
+                  ))}
                 </div>
 
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1394,14 +1568,48 @@ export default function App() {
                 </div>
 
                 {selectedCell ? (
-                  <div style={{ background: "rgba(248,250,252,0.92)", borderRadius: 16, padding: 12, border: "1px solid #e5e7eb", display: "grid", gap: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                      <div>
-                        <strong>Case {selectedIndex + 1}</strong> • {structures[selectedCell.structure].label}{selectedCell.plant ? ` • ${plants[selectedCell.plant].name}` : ""}
+                  <div
+                    style={{
+                      background: "linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.94) 100%)",
+                      borderRadius: 18,
+                      padding: 12,
+                      border: "1px solid #e5e7eb",
+                      display: "grid",
+                      gap: 10,
+                      boxShadow: "0 12px 24px rgba(15,23,42,0.06)",
+                    }}
+                  >
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr .8fr", gap: 10 }}>
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                          <div>
+                            <strong>Case {selectedIndex + 1}</strong> • {structures[selectedCell.structure].label}{selectedCell.plant ? ` • ${plants[selectedCell.plant].name}` : ""}
+                          </div>
+                          <div style={{ color: "#64748b" }}>{sunLabel(selectedCell.sun)}</div>
+                        </div>
+                        <div style={{ color: "#334155", lineHeight: 1.5 }}>{selectedAdvice}</div>
                       </div>
-                      <div style={{ color: "#64748b" }}>{sunLabel(selectedCell.sun)}</div>
+                      <div
+                        style={{
+                          background: "#ffffff",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 14,
+                          padding: 10,
+                          display: "grid",
+                          gap: 6,
+                        }}
+                      >
+                        <div style={{ fontWeight: 800, fontSize: 13 }}>Widget de case</div>
+                        <div style={{ color: "#475569", fontSize: 13 }}>
+                          {selectedCell.reminders.find((r) => !r.done)
+                            ? `Prochain rappel : ${selectedCell.reminders.find((r) => !r.done).title}`
+                            : "Aucun rappel actif"}
+                        </div>
+                        <div style={{ color: "#475569", fontSize: 13 }}>
+                          Actions : {selectedCell.actions.length} • Quantité : {selectedCell.count || 0}
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ color: "#334155", lineHeight: 1.5 }}>{selectedAdvice}</div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       <button onClick={(event) => openCellEditor(selectedIndex, event)} style={button("#111827")}>Éditer la case</button>
                       <button onClick={() => updateCell(selectedIndex, () => createCell())} style={softButton(false)}>Vider</button>
@@ -1409,6 +1617,11 @@ export default function App() {
                         const nextIndex = activePlan.cells.findIndex((cell, i) => i !== selectedIndex && cell.structure === "empty" && !cell.plant);
                         if (nextIndex !== -1) duplicateSelectedInto(nextIndex);
                       }} style={softButton(false)}>Dupliquer vers une case vide</button>
+                      {Object.keys(actionTemplates).slice(0, 2).map((key) => (
+                        <button key={key} onClick={() => validateAction(selectedIndex, key)} style={chipStyle(false, "#0f766e")}>
+                          {actionTemplates[key].icon} {actionTemplates[key].label}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 ) : (
