@@ -92,31 +92,28 @@ function fieldStyle() {
 }
 
 function Fireflies() {
-  const dots = useMemo(
-    () => {
-      const edgeBands = [
-        () => ({ left: Math.random() * 18, top: Math.random() * 100 }),
-        () => ({ left: 82 + Math.random() * 18, top: Math.random() * 100 }),
-        () => ({ left: Math.random() * 100, top: Math.random() * 14 }),
-        () => ({ left: Math.random() * 100, top: 86 + Math.random() * 14 }),
-      ];
+  const dots = useMemo(() => {
+    const edgeBands = [
+      () => ({ left: Math.random() * 18, top: Math.random() * 100 }),
+      () => ({ left: 82 + Math.random() * 18, top: Math.random() * 100 }),
+      () => ({ left: Math.random() * 100, top: Math.random() * 14 }),
+      () => ({ left: Math.random() * 100, top: 86 + Math.random() * 14 }),
+    ];
 
-      return Array.from({ length: 42 }).map((_, i) => {
-        const pick = edgeBands[i % edgeBands.length]();
-        return {
-          id: i,
-          left: pick.left,
-          top: pick.top,
-          size: 1.4 + Math.random() * 3.6,
-          duration: 4 + Math.random() * 8,
-          delay: Math.random() * 5,
-          driftX: -8 + Math.random() * 16,
-          driftY: -10 + Math.random() * 14,
-        };
-      });
-    },
-    []
-  );
+    return Array.from({ length: 42 }).map((_, i) => {
+      const pick = edgeBands[i % edgeBands.length]();
+      return {
+        id: i,
+        left: pick.left,
+        top: pick.top,
+        size: 1.4 + Math.random() * 3.6,
+        duration: 4 + Math.random() * 8,
+        delay: Math.random() * 5,
+        driftX: -8 + Math.random() * 16,
+        driftY: -10 + Math.random() * 14,
+      };
+    });
+  }, []);
 
   return (
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
@@ -231,14 +228,14 @@ function HouseWindowGlow({ left, top, width, height, delay = 0 }) {
         top,
         width,
         height,
-        borderRadius: 6,
-        background: "radial-gradient(circle at 50% 50%, rgba(255,215,148,0.95), rgba(255,173,86,0.72) 55%, rgba(255,145,64,0.14) 100%)",
-        boxShadow: "0 0 18px rgba(255,182,95,0.30), 0 0 34px rgba(255,182,95,0.10)",
+        borderRadius: 3,
+        background: "linear-gradient(180deg, rgba(255,214,150,0.32), rgba(255,169,92,0.18))",
+        boxShadow: "0 0 10px rgba(255,182,95,0.10)",
         mixBlendMode: "screen",
         pointerEvents: "none",
       }}
-      animate={{ opacity: [0.46, 0.74, 0.52, 0.82, 0.46] }}
-      transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut", delay }}
+      animate={{ opacity: [0.14, 0.3, 0.18, 0.34, 0.14] }}
+      transition={{ duration: 5.6, repeat: Infinity, ease: "easeInOut", delay }}
     />
   );
 }
@@ -246,36 +243,15 @@ function HouseWindowGlow({ left, top, width, height, delay = 0 }) {
 function HouseLights() {
   return (
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
-      <HouseWindowGlow left="79.2%" top="36.8%" width="2.6%" height="2.9%" delay={0.2} />
-      <HouseWindowGlow left="82.7%" top="36.8%" width="2.6%" height="2.9%" delay={1.1} />
-      <HouseWindowGlow left="80.7%" top="40.8%" width="2.8%" height="3.2%" delay={0.6} />
-      <motion.div
-        style={{
-          position: "absolute",
-          left: "75%",
-          top: "30%",
-          width: "18%",
-          height: "22%",
-          background: "radial-gradient(circle at 65% 45%, rgba(255,192,110,0.12), transparent 52%)",
-          filter: "blur(22px)",
-          pointerEvents: "none",
-        }}
-        animate={{ opacity: [0.15, 0.28, 0.15] }}
-        transition={{ duration: 5.2, repeat: Infinity, ease: "easeInOut" }}
-      />
+      <HouseWindowGlow left="80.3%" top="38.6%" width="1.55%" height="2.35%" delay={0.2} />
+      <HouseWindowGlow left="82.55%" top="38.55%" width="1.55%" height="2.35%" delay={1.1} />
+      <HouseWindowGlow left="79.9%" top="42.5%" width="2.45%" height="3.2%" delay={0.6} />
+      <HouseWindowGlow left="83.15%" top="42.45%" width="2.45%" height="3.2%" delay={1.4} />
     </div>
   );
 }
 
-function Hotspot({ style, onClick, title }) {
-  return <button title={title} onClick={onClick} style={{ position: "absolute", background: "transparent", border: "none", cursor: "pointer", ...style }} />;
-}
-
-function LeafBadge({ color }) {
-  return <span style={{ width: 24, height: 16, borderRadius: 10, background: `radial-gradient(circle at 30% 30%, ${color}, rgba(34,68,34,0.96))`, boxShadow: "inset 0 0 8px rgba(255,255,255,0.06)" }} />;
-}
-
-function HomeOverlay({ onOpenPanel, onOpenCreate }) {
+function Hotspot({ onOpenPanel, onOpenCreate }) {
   const ref = useRef(null);
 
   function handleContextMenu(e) {
@@ -408,21 +384,10 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
   );
 }
 
-function miniButtonStyle() {
-  return {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    border: "1px solid rgba(182,204,255,0.10)",
-    background: "linear-gradient(180deg, rgba(23,30,64,0.74), rgba(9,12,25,0.92))",
-    color: "#eef2ff",
-    cursor: "pointer",
-    display: "grid",
-    placeItems: "center",
-  };
-}
-
 function FloatingWindow({ win, isActive, onFocus, onClose, onMinimize, onMove, onResize, children }) {
+  const dragRef = useRef(null);
+  const resizeRef = useRef(null);
+
   function startDrag(e) {
     if (e.target.closest("button")) return;
     e.preventDefault();
@@ -496,6 +461,7 @@ function FloatingWindow({ win, isActive, onFocus, onClose, onMinimize, onMove, o
       }}
     >
       <div
+        ref={dragRef}
         onMouseDown={startDrag}
         style={{
           height: 54,
@@ -521,6 +487,7 @@ function FloatingWindow({ win, isActive, onFocus, onClose, onMinimize, onMove, o
         <>
           <div style={{ height: `calc(100% - 54px)`, overflow: "auto", padding: 14 }}>{children}</div>
           <div
+            ref={resizeRef}
             onMouseDown={startResize}
             style={{
               position: "absolute",
@@ -537,6 +504,20 @@ function FloatingWindow({ win, isActive, onFocus, onClose, onMinimize, onMove, o
       ) : null}
     </motion.div>
   );
+}
+
+function miniButtonStyle() {
+  return {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    border: "1px solid rgba(182,204,255,0.10)",
+    background: "linear-gradient(180deg, rgba(23,30,64,0.74), rgba(9,12,25,0.92))",
+    color: "#eef2ff",
+    cursor: "pointer",
+    display: "grid",
+    placeItems: "center",
+  };
 }
 
 function CreateCaseModal({ openAt, onClose, onSave }) {
@@ -709,12 +690,26 @@ export default function App() {
 
   return (
     <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden", color: "#eef2ff", fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      <div style={{ position: "absolute", inset: -18, backgroundImage: `url(${REF_BG})`, backgroundSize: "cover", backgroundPosition: "center", transform: "scale(1.035)", filter: "saturate(1.1) contrast(1.1) brightness(1.01)" }} />
-      <div style={{ position: "absolute", inset: -8, backgroundImage: `url(${REF_BG})`, backgroundSize: "cover", backgroundPosition: "center", transform: "scale(1.015)", mixBlendMode: "screen", opacity: 0.12, filter: "blur(0.6px) contrast(1.14)" }} />
-      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(4,8,18,0.03), rgba(4,8,18,0.18))" }} />
+      <img
+        src={REF_BG}
+        alt="Fond potager"
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          objectPosition: "50% 50%",
+          transform: "scale(1.01)",
+          filter: "saturate(1.06) contrast(1.06) brightness(0.99)",
+          display: "block",
+          pointerEvents: "none",
+          userSelect: "none",
+        }}
+      />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(4,8,18,0.02), rgba(4,8,18,0.14))" }} />
       <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, rgba(255,255,255,0.05), transparent 48%)" }} />
-      <AmbientGlow />
-      <HouseLights />
+      <      <HouseLights />
       <Fireflies />
 
       <AnimatePresence>
