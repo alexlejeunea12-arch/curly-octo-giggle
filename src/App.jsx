@@ -1,63 +1,58 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  AlertTriangle,
   Bell,
   CalendarDays,
-  CheckCircle2,
-  ChevronLeft,
   Droplets,
   Home,
   LayoutGrid,
   Leaf,
   Map,
-  MoonStar,
+  Moon,
   Pencil,
   Plus,
-  Settings2,
+  Save,
   Shield,
   Sparkles,
   Sprout,
-  Sun,
-  Thermometer,
   Trash2,
-  Triangle,
+  Wand2,
 } from "lucide-react";
 
 const STORAGE_KEYS = {
-  beds: "potager-v35-beds",
-  seedlings: "potager-v35-seedlings",
-  alerts: "potager-v35-alerts",
-  notes: "potager-v35-notes",
+  beds: "potager-v351-beds",
+  seedlings: "potager-v351-seedlings",
+  alerts: "potager-v351-alerts",
+  notes: "potager-v351-notes",
 };
 
 const initialBeds = [
   {
     id: crypto.randomUUID(),
-    name: "Case 1",
+    name: "Parcelle 1",
     zone: "Mur gauche",
-    exposure: "Mi-ombre / soleil progressif",
+    exposure: "Mi-ombre",
     status: "Préparation",
-    crop: "À définir",
-    note: "Zone pratique pour les cultures à surveiller de près.",
+    crop: "Laitue",
+    note: "Zone proche de l’habitation, facile à surveiller.",
   },
   {
     id: crypto.randomUUID(),
-    name: "Case 2",
+    name: "Parcelle 2",
     zone: "Centre",
     exposure: "Bonne lumière",
     status: "Disponible",
     crop: "Tomates",
-    note: "Bonne candidate pour les tomates si tuteurage vertical.",
+    note: "Bonne candidate pour culture verticale.",
   },
   {
     id: crypto.randomUUID(),
-    name: "Case 3",
+    name: "Parcelle 3",
     zone: "Près de la serre",
     exposure: "Chaud / protégé",
     status: "Surveillance",
     crop: "Poivrons / piments",
-    note: "Zone logique pour les cultures aimant la chaleur.",
+    note: "Contrôle chaleur et humidité prioritaire.",
   },
 ];
 
@@ -67,22 +62,22 @@ const initialSeedlings = [
     name: "Piments",
     variety: "À préciser",
     sowingDate: "2026-03-08",
-    location: "Serre de semis intérieure",
+    location: "Serre intérieure",
     status: "Semé",
     humidity: "Humide",
     light: "LED prioritaire",
-    note: "Semis déjà lancés. À surveiller : chaleur, condensation, fonte des semis.",
+    note: "Surveiller condensation et levée.",
   },
   {
     id: crypto.randomUUID(),
     name: "Poivrons",
     variety: "À préciser",
     sowingDate: "2026-03-08",
-    location: "Serre de semis intérieure",
+    location: "Serre intérieure",
     status: "Semé",
     humidity: "Humide",
     light: "LED prioritaire",
-    note: "Conserver une chaleur stable et aérer si condensation excessive.",
+    note: "Aération douce si excès d’humidité.",
   },
   {
     id: crypto.randomUUID(),
@@ -93,7 +88,7 @@ const initialSeedlings = [
     status: "Prévu",
     humidity: "—",
     light: "À définir",
-    note: "À ajouter quand le semis est réellement lancé.",
+    note: "À passer en actif au lancement réel du semis.",
   },
 ];
 
@@ -114,7 +109,7 @@ const initialAlerts = [
   },
   {
     id: crypto.randomUUID(),
-    title: "Préparer la future zone tomates",
+    title: "Préparer la zone tomates",
     priority: "Moyenne",
     category: "Jardin",
     done: false,
@@ -135,100 +130,98 @@ function useLocalStorageState(key, initialValue) {
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch {
-      // ignore storage errors
+      // ignore
     }
   }, [key, value]);
 
   return [value, setValue];
 }
 
-function cn(...classes) {
-  return classes.filter(Boolean).join(" ");
+function useWindowWidth() {
+  const [width, setWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1400);
+
+  useEffect(() => {
+    const onResize = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  return width;
 }
 
-function StatCard({ icon: Icon, label, value, hint }) {
-  return (
-    <motion.div
-      layout
-      className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_40px_rgba(0,0,0,0.25)] backdrop-blur-xl"
-      whileHover={{ y: -4, scale: 1.01 }}
-      transition={{ duration: 0.2 }}
-    >
-      <div className="mb-3 flex items-center justify-between">
-        <div className="rounded-2xl border border-white/10 bg-white/10 p-2 text-emerald-200">
-          <Icon size={18} />
-        </div>
-        <span className="text-[10px] uppercase tracking-[0.25em] text-white/35">Live</span>
-      </div>
-      <div className="text-xs uppercase tracking-[0.25em] text-white/45">{label}</div>
-      <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
-      <div className="mt-2 text-sm text-white/50">{hint}</div>
-    </motion.div>
-  );
+function panelStyle(extra = {}) {
+  return {
+    background: "linear-gradient(180deg, rgba(18,26,58,0.70), rgba(7,10,24,0.78))",
+    border: "1px solid rgba(180, 210, 255, 0.12)",
+    boxShadow: "0 18px 60px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.06)",
+    borderRadius: 22,
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    ...extra,
+  };
 }
 
-function DockButton({ icon: Icon, label, active, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "group relative overflow-hidden rounded-3xl border px-4 py-4 text-left transition-all duration-300",
-        active
-          ? "border-emerald-300/40 bg-emerald-300/15 shadow-[0_0_40px_rgba(52,211,153,0.16)]"
-          : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10"
-      )}
-    >
-      <div className="flex items-center gap-3">
-        <div
-          className={cn(
-            "rounded-2xl p-2 transition-all duration-300",
-            active ? "bg-emerald-200/20 text-emerald-200" : "bg-white/10 text-white/80"
-          )}
-        >
-          <Icon size={18} />
-        </div>
-        <div>
-          <div className="text-sm font-medium text-white">{label}</div>
-          <div className="text-xs text-white/40">Accès direct</div>
-        </div>
-      </div>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.10),transparent_40%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-    </button>
-  );
+function thinPanelStyle(extra = {}) {
+  return panelStyle({
+    background: "linear-gradient(180deg, rgba(20,28,62,0.54), rgba(6,9,18,0.72))",
+    borderRadius: 18,
+    ...extra,
+  });
 }
 
-function SectionCard({ title, subtitle, right, children, className = "" }) {
+function iconButtonStyle(active = false) {
+  return {
+    width: 110,
+    minHeight: 86,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    cursor: "pointer",
+    borderRadius: 18,
+    border: active ? "1px solid rgba(255,215,140,0.30)" : "1px solid rgba(180,210,255,0.12)",
+    background: active
+      ? "linear-gradient(180deg, rgba(90,105,180,0.42), rgba(28,36,82,0.78))"
+      : "linear-gradient(180deg, rgba(32,42,84,0.42), rgba(10,14,28,0.68))",
+    color: "#f1f3ff",
+    boxShadow: active
+      ? "0 8px 26px rgba(255,190,90,0.16), inset 0 1px 0 rgba(255,255,255,0.10)"
+      : "0 8px 24px rgba(0,0,0,0.26)",
+  };
+}
+
+function cardTitle(text, sub) {
   return (
-    <motion.section
-      layout
-      className={cn(
-        "rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 backdrop-blur-2xl shadow-[0_20px_80px_rgba(0,0,0,0.25)]",
-        className
-      )}
-    >
-      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-white">{title}</h2>
-          {subtitle ? <p className="mt-1 text-sm text-white/50">{subtitle}</p> : null}
-        </div>
-        {right}
-      </div>
-      {children}
-    </motion.section>
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 14, letterSpacing: 1.4, color: "rgba(235,242,255,0.95)", fontWeight: 700, textTransform: "uppercase" }}>{text}</div>
+      {sub ? <div style={{ marginTop: 6, fontSize: 12.5, color: "rgba(208,220,255,0.58)", lineHeight: 1.5 }}>{sub}</div> : null}
+    </div>
   );
 }
 
 function Badge({ children, tone = "default" }) {
   const tones = {
-    default: "border-white/10 bg-white/5 text-white/70",
-    green: "border-emerald-300/20 bg-emerald-400/10 text-emerald-200",
-    amber: "border-amber-300/20 bg-amber-400/10 text-amber-200",
-    red: "border-rose-300/20 bg-rose-400/10 text-rose-200",
-    blue: "border-sky-300/20 bg-sky-400/10 text-sky-200",
+    default: { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", color: "rgba(240,244,255,0.78)" },
+    green: { background: "rgba(88, 255, 165, 0.12)", border: "1px solid rgba(88,255,165,0.22)", color: "#b9ffd9" },
+    amber: { background: "rgba(255, 195, 102, 0.12)", border: "1px solid rgba(255,195,102,0.22)", color: "#ffe2a6" },
+    blue: { background: "rgba(110, 170, 255, 0.12)", border: "1px solid rgba(110,170,255,0.24)", color: "#c8dcff" },
+    red: { background: "rgba(255, 105, 105, 0.12)", border: "1px solid rgba(255,105,105,0.24)", color: "#ffc6c6" },
   };
+  const toneStyle = tones[tone] || tones.default;
 
   return (
-    <span className={cn("inline-flex items-center rounded-full border px-3 py-1 text-xs", tones[tone])}>
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "6px 10px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 600,
+        ...toneStyle,
+      }}
+    >
       {children}
     </span>
   );
@@ -237,310 +230,441 @@ function Badge({ children, tone = "default" }) {
 function Fireflies() {
   const dots = useMemo(
     () =>
-      Array.from({ length: 18 }).map((_, i) => ({
+      Array.from({ length: 28 }).map((_, i) => ({
         id: i,
         left: Math.random() * 100,
         top: Math.random() * 100,
-        duration: 6 + Math.random() * 8,
-        delay: Math.random() * 5,
-        size: 3 + Math.random() * 6,
+        size: 2 + Math.random() * 5,
+        delay: Math.random() * 4,
+        duration: 6 + Math.random() * 9,
       })),
     []
   );
 
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {dots.map((dot) => (
-        <motion.span
-          key={dot.id}
-          className="absolute rounded-full bg-white/70 blur-[1px]"
+    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+      {dots.map((d) => (
+        <motion.div
+          key={d.id}
           style={{
-            left: `${dot.left}%`,
-            top: `${dot.top}%`,
-            width: dot.size,
-            height: dot.size,
-            boxShadow: "0 0 18px rgba(255,255,255,0.45)",
+            position: "absolute",
+            left: `${d.left}%`,
+            top: `${d.top}%`,
+            width: d.size,
+            height: d.size,
+            borderRadius: "50%",
+            background: "rgba(255,219,138,0.9)",
+            boxShadow: "0 0 18px rgba(255,210,120,0.8)",
           }}
           animate={{
-            y: [0, -20, 12, 0],
-            x: [0, 12, -8, 0],
-            opacity: [0.2, 0.9, 0.45, 0.2],
-            scale: [1, 1.25, 0.95, 1],
+            opacity: [0.15, 0.9, 0.35, 0.15],
+            y: [0, -18, 10, 0],
+            x: [0, 10, -8, 0],
+            scale: [1, 1.2, 0.95, 1],
           }}
-          transition={{
-            duration: dot.duration,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: dot.delay,
-          }}
+          transition={{ duration: d.duration, repeat: Infinity, ease: "easeInOut", delay: d.delay }}
         />
       ))}
     </div>
   );
 }
 
-function Header({ view, setView }) {
+function MoonGlow() {
   return (
-    <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-[linear-gradient(135deg,rgba(16,185,129,0.12),rgba(255,255,255,0.04),rgba(99,102,241,0.08))] p-6 shadow-[0_20px_90px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.16),transparent_35%)]" />
-      <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-3xl">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.28em] text-white/55">
-            <Sparkles size={14} className="text-emerald-200" />
-            Potager V35 · Tour de contrôle immersive
-          </div>
-          <h1 className="text-3xl font-semibold leading-tight text-white md:text-5xl">
-            Un tableau de bord plus vivant, plus lisible, plus proche du réel.
-          </h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/60 md:text-base">
-            Priorité au suivi concret : semis, humidité, lumière, cases, zones, alertes et décisions utiles.
-            Le menu principal sert de centre de commandement, chaque icône ouvre une vue dédiée.
-          </p>
-        </div>
+    <>
+      <div
+        style={{
+          position: "absolute",
+          top: 70,
+          right: 330,
+          width: 58,
+          height: 58,
+          borderRadius: "50%",
+          background: "radial-gradient(circle at 30% 30%, rgba(250,246,220,1), rgba(225,225,215,0.85) 46%, rgba(170,180,220,0.18) 72%, transparent 74%)",
+          boxShadow: "0 0 40px rgba(216,224,255,0.18)",
+          opacity: 0.95,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: 52,
+          right: 290,
+          width: 240,
+          height: 160,
+          background: "radial-gradient(circle, rgba(174,190,255,0.10), transparent 70%)",
+          filter: "blur(12px)",
+        }}
+      />
+    </>
+  );
+}
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:w-[520px]">
-          <DockButton icon={Home} label="Tour" active={view === "dashboard"} onClick={() => setView("dashboard")} />
-          <DockButton icon={Map} label="Plan" active={view === "plan"} onClick={() => setView("plan")} />
-          <DockButton icon={LayoutGrid} label="Cases" active={view === "beds"} onClick={() => setView("beds")} />
-          <DockButton icon={Sprout} label="Semis" active={view === "seedlings"} onClick={() => setView("seedlings")} />
-        </div>
+function Input({ label, value, onChange, type = "text", placeholder }) {
+  return (
+    <label style={{ display: "block", marginBottom: 12 }}>
+      <div style={{ fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase", color: "rgba(205,218,255,0.55)", marginBottom: 6 }}>{label}</div>
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "12px 14px",
+          borderRadius: 14,
+          border: "1px solid rgba(180,210,255,0.12)",
+          background: "rgba(6,9,20,0.50)",
+          color: "#edf1ff",
+          outline: "none",
+          fontSize: 14,
+        }}
+      />
+    </label>
+  );
+}
+
+function Select({ label, value, onChange, options }) {
+  return (
+    <label style={{ display: "block", marginBottom: 12 }}>
+      <div style={{ fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase", color: "rgba(205,218,255,0.55)", marginBottom: 6 }}>{label}</div>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "12px 14px",
+          borderRadius: 14,
+          border: "1px solid rgba(180,210,255,0.12)",
+          background: "rgba(6,9,20,0.50)",
+          color: "#edf1ff",
+          outline: "none",
+          fontSize: 14,
+        }}
+      >
+        {options.map((option) => (
+          <option key={option} value={option} style={{ background: "#0a1024", color: "#edf1ff" }}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function TextArea({ label, value, onChange, placeholder }) {
+  return (
+    <label style={{ display: "block", marginBottom: 12 }}>
+      <div style={{ fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase", color: "rgba(205,218,255,0.55)", marginBottom: 6 }}>{label}</div>
+      <textarea
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          width: "100%",
+          minHeight: 88,
+          padding: "12px 14px",
+          borderRadius: 14,
+          border: "1px solid rgba(180,210,255,0.12)",
+          background: "rgba(6,9,20,0.50)",
+          color: "#edf1ff",
+          outline: "none",
+          fontSize: 14,
+          resize: "vertical",
+        }}
+      />
+    </label>
+  );
+}
+
+function ActionTile({ icon: Icon, label, active, onClick }) {
+  return (
+    <motion.button whileHover={{ y: -2 }} style={iconButtonStyle(active)} onClick={onClick}>
+      <Icon size={24} />
+      <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.15, textAlign: "center" }}>{label}</div>
+    </motion.button>
+  );
+}
+
+function SideMiniCard({ icon: Icon, title, children }) {
+  return (
+    <div style={thinPanelStyle({ padding: 14, marginBottom: 10 })}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#eef2ff", fontWeight: 700, fontSize: 13, marginBottom: 10, textTransform: "uppercase", letterSpacing: 1.1 }}>
+        <Icon size={15} />
+        {title}
       </div>
+      {children}
     </div>
   );
 }
 
-function Dashboard({ seedlings, beds, alerts, notes, setView, setNotes }) {
-  const activeSeedlings = seedlings.filter((s) => s.status !== "Récolté");
-  const urgentAlerts = alerts.filter((a) => !a.done && a.priority === "Haute");
-  const availableBeds = beds.filter((b) => b.status === "Disponible");
+function OverviewPanel({ setView, seedlings, alerts, notes, setNotes }) {
+  const urgent = alerts.filter((a) => !a.done && a.priority === "Haute").length;
+  const activeSeedlings = seedlings.filter((s) => s.status !== "Récolté").length;
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          icon={Sprout}
-          label="Semis suivis"
-          value={activeSeedlings.length}
-          hint="Ce qui est en cours ou planifié"
-        />
-        <StatCard
-          icon={LayoutGrid}
-          label="Cases"
-          value={beds.length}
-          hint={`${availableBeds.length} encore disponibles`}
-        />
-        <StatCard
-          icon={Bell}
-          label="Alertes"
-          value={urgentAlerts.length}
-          hint="Priorité haute à traiter"
-        />
-        <StatCard
-          icon={Droplets}
-          label="Surveillance"
-          value={seedlings.filter((s) => s.humidity === "Humide").length}
-          hint="Semis humides actuellement"
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.35fr_0.9fr]">
-        <SectionCard
-          title="Centre de commandement"
-          subtitle="La vue synthèse pour comprendre immédiatement ce qui demande ton attention"
-        >
-          <div className="grid gap-4 md:grid-cols-3">
-            <button
-              onClick={() => setView("seedlings")}
-              className="rounded-3xl border border-emerald-300/20 bg-emerald-400/10 p-4 text-left transition hover:bg-emerald-400/15"
-            >
-              <div className="mb-3 flex items-center gap-2 text-emerald-200">
-                <Sprout size={18} />
-                <span className="text-sm font-medium">Gestion semis</span>
-              </div>
-              <div className="text-sm leading-6 text-white/70">
-                Suivre les dates, l’état, la lumière et l’humidité des semis de l’année.
-              </div>
-            </button>
-
-            <button
-              onClick={() => setView("beds")}
-              className="rounded-3xl border border-sky-300/20 bg-sky-400/10 p-4 text-left transition hover:bg-sky-400/15"
-            >
-              <div className="mb-3 flex items-center gap-2 text-sky-200">
-                <LayoutGrid size={18} />
-                <span className="text-sm font-medium">Gestion des cases</span>
-              </div>
-              <div className="text-sm leading-6 text-white/70">
-                Créer, modifier, supprimer et affecter les zones du jardin en quelques clics.
-              </div>
-            </button>
-
-            <button
-              onClick={() => setView("alerts")}
-              className="rounded-3xl border border-amber-300/20 bg-amber-400/10 p-4 text-left transition hover:bg-amber-400/15"
-            >
-              <div className="mb-3 flex items-center gap-2 text-amber-200">
-                <Bell size={18} />
-                <span className="text-sm font-medium">Alarmes & vigilance</span>
-              </div>
-              <div className="text-sm leading-6 text-white/70">
-                Aération, humidité, condensation, zones chaudes, préparation du terrain.
-              </div>
-            </button>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+      <SideMiniCard icon={Moon} title="Zone actuelle">
+        <div style={{ display: "grid", gap: 10 }}>
+          <div style={selectorLineStyle()}>
+            <span>Parcelle</span>
+            <span style={{ opacity: 0.75 }}>▾</span>
           </div>
-        </SectionCard>
-
-        <SectionCard title="Notes de terrain" subtitle="Toujours reliées au réel avant le reste">
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Ex : condensation forte le matin, terreau encore humide, lumière correcte sur l’étagère haute…"
-            className="min-h-[220px] w-full rounded-3xl border border-white/10 bg-black/20 p-4 text-sm text-white outline-none placeholder:text-white/25"
-          />
-        </SectionCard>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <SectionCard title="Priorités immédiates" subtitle="Ce qui mérite une action concrète aujourd’hui">
-          <div className="space-y-3">
-            {urgentAlerts.length === 0 ? (
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
-                Aucune alerte haute pour l’instant.
-              </div>
-            ) : (
-              urgentAlerts.map((alert) => (
-                <div key={alert.id} className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-medium text-white">{alert.title}</div>
-                      <div className="mt-1 text-xs text-white/45">{alert.category}</div>
-                    </div>
-                    <Badge tone="red">Priorité haute</Badge>
-                  </div>
-                </div>
-              ))
-            )}
+          <div style={selectorLineStyle()}>
+            <span>Mi-ombre</span>
+            <span style={{ opacity: 0.75 }}>🥬</span>
           </div>
-        </SectionCard>
-
-        <SectionCard title="Semis récents / en vue" subtitle="Le module que tu voulais vraiment mettre en avant dans cette version">
-          <div className="space-y-3">
-            {seedlings.slice(0, 4).map((seedling) => (
-              <div key={seedling.id} className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-sm font-medium text-white">{seedling.name}</div>
-                  <Badge tone={seedling.status === "Semé" ? "green" : seedling.status === "Prévu" ? "amber" : "blue"}>
-                    {seedling.status}
-                  </Badge>
-                </div>
-                <div className="mt-2 text-sm text-white/50">
-                  {seedling.sowingDate ? `Date : ${seedling.sowingDate}` : "Date non renseignée"} · {seedling.location}
-                </div>
-              </div>
-            ))}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={actionLineStyle()} onClick={() => setView("alerts")}>Arroser</button>
+            <button style={actionLineStyle()} onClick={() => setView("beds")}>Modifier</button>
           </div>
-        </SectionCard>
-      </div>
+        </div>
+      </SideMiniCard>
+
+      <SideMiniCard icon={Sprout} title="Suivi vivant">
+        <div style={{ display: "grid", gap: 8 }}>
+          <div style={metricRowStyle()}><span>Semis suivis</span><strong>{activeSeedlings}</strong></div>
+          <div style={metricRowStyle()}><span>Alertes hautes</span><strong>{urgent}</strong></div>
+          <div style={metricRowStyle()}><span>Condensation</span><strong>À surveiller</strong></div>
+        </div>
+      </SideMiniCard>
+
+      <SideMiniCard icon={Pencil} title="Note terrain">
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Condensation forte le matin, terreau encore humide, lumière correcte..."
+          style={{
+            width: "100%",
+            minHeight: 110,
+            borderRadius: 14,
+            border: "1px solid rgba(180,210,255,0.12)",
+            background: "rgba(5,8,18,0.56)",
+            color: "#edf1ff",
+            padding: 12,
+            outline: "none",
+            resize: "vertical",
+          }}
+        />
+      </SideMiniCard>
     </div>
   );
 }
 
-function PlanView() {
-  const zones = [
-    {
-      title: "Mur gauche",
-      desc: "Zone pratique pour serre, surveillance rapprochée et cultures fragiles.",
-      tone: "from-emerald-400/20 to-transparent",
-    },
-    {
-      title: "Centre du jardin",
-      desc: "Zone lisible pour cultures majeures, circulation et vision d’ensemble.",
-      tone: "from-sky-400/20 to-transparent",
-    },
-    {
-      title: "Près des protections",
-      desc: "Espace à relier aux systèmes anti-nuisibles et à l’observation météo.",
-      tone: "from-amber-400/20 to-transparent",
-    },
-    {
-      title: "Zone serre / semis",
-      desc: "Point chaud pour ce qui a besoin d’un meilleur contrôle lumière + humidité.",
-      tone: "from-fuchsia-400/20 to-transparent",
-    },
+function selectorLineStyle() {
+  return {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "12px 14px",
+    borderRadius: 14,
+    border: "1px solid rgba(180,210,255,0.11)",
+    background: "linear-gradient(180deg, rgba(42,52,98,0.54), rgba(9,12,24,0.72))",
+    color: "#eef2ff",
+    fontSize: 14,
+    fontWeight: 600,
+  };
+}
+
+function actionLineStyle() {
+  return {
+    flex: 1,
+    padding: "12px 14px",
+    borderRadius: 14,
+    cursor: "pointer",
+    border: "1px solid rgba(180,210,255,0.11)",
+    background: "linear-gradient(180deg, rgba(68,78,140,0.58), rgba(16,20,38,0.78))",
+    color: "#f5f0ff",
+    fontSize: 14,
+    fontWeight: 700,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
+  };
+}
+
+function metricRowStyle() {
+  return {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 12,
+    color: "rgba(233,241,255,0.82)",
+    fontSize: 14,
+    padding: "8px 0",
+    borderBottom: "1px solid rgba(255,255,255,0.06)",
+  };
+}
+
+function BigBoard({ setView }) {
+  const cells = [
+    ["#79b9ff", "#7fda91", "#6aa9ff", "#78d95a"],
+    ["#67d8a8", "#edb166", "#958ae8", "#67d48b"],
+    ["#b4ff8c", "#e1aa6f", "#6caee7", "#95d267"],
   ];
 
   return (
-    <div className="space-y-6">
-      <SectionCard title="Plan du jardin" subtitle="Vue conceptuelle en attendant les emplacements réels peaufinés avec tes photos">
-        <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-          <div className="rounded-[30px] border border-white/10 bg-black/20 p-5">
-            <div className="grid h-[420px] grid-cols-3 gap-3 rounded-[26px] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(52,211,153,0.10),rgba(255,255,255,0.02),rgba(0,0,0,0.15))] p-3">
-              <div className="col-span-1 rounded-[24px] border border-emerald-300/20 bg-emerald-500/10 p-4">
-                <div className="text-sm font-medium text-emerald-200">Mur gauche</div>
-                <div className="mt-2 text-xs leading-6 text-white/60">
-                  Surveillances, semis, accès rapide, zone stratégique.
-                </div>
-              </div>
-              <div className="col-span-2 rounded-[24px] border border-sky-300/20 bg-sky-500/10 p-4">
-                <div className="text-sm font-medium text-sky-200">Grand espace principal</div>
-                <div className="mt-2 text-xs leading-6 text-white/60">
-                  Cases majeures, cultures structurantes, futur plan détaillé.
-                </div>
-              </div>
-              <div className="col-span-2 rounded-[24px] border border-amber-300/20 bg-amber-500/10 p-4">
-                <div className="text-sm font-medium text-amber-200">Zone protections / vigilance</div>
-                <div className="mt-2 text-xs leading-6 text-white/60">
-                  Nuisibles, barrières, filets, surveillance spécifique.
-                </div>
-              </div>
-              <div className="rounded-[24px] border border-fuchsia-300/20 bg-fuchsia-500/10 p-4">
-                <div className="text-sm font-medium text-fuchsia-200">Serre / appui</div>
-                <div className="mt-2 text-xs leading-6 text-white/60">
-                  Zone chaude et technique.
-                </div>
-              </div>
+    <div style={panelStyle({ padding: 20, position: "relative", overflow: "hidden" })}>
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00) 30%, rgba(8,10,18,0.24))" }} />
+      {cardTitle("Mon potager", "Centre de commande visuel inspiré de l’image de référence, en restant piloté par tes menus réels.")}
+
+      <div
+        style={{
+          position: "relative",
+          height: 360,
+          borderRadius: 26,
+          overflow: "hidden",
+          border: "1px solid rgba(180,210,255,0.12)",
+          background:
+            "linear-gradient(180deg, rgba(26,35,84,0.24), rgba(8,11,25,0.70)), radial-gradient(circle at 20% 80%, rgba(245,195,96,0.12), transparent 24%), radial-gradient(circle at 70% 24%, rgba(118,120,255,0.10), transparent 26%), linear-gradient(180deg, rgba(9,14,34,0.88), rgba(5,9,22,0.96))",
+          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.03)",
+        }}
+      >
+        <div style={{ position: "absolute", top: 12, left: 16, color: "rgba(232,239,255,0.75)", fontSize: 12, letterSpacing: 1.1 }}>Vue parcelle immersive</div>
+        <div style={{ position: "absolute", inset: 24, display: "grid", placeItems: "center" }}>
+          <div
+            style={{
+              width: "82%",
+              maxWidth: 650,
+              aspectRatio: "16 / 8.6",
+              transform: "perspective(1200px) rotateX(52deg)",
+              borderRadius: 12,
+              padding: 8,
+              background: "linear-gradient(180deg, rgba(68,49,34,0.95), rgba(36,23,16,0.95))",
+              border: "1px solid rgba(255,220,185,0.16)",
+              boxShadow: "0 30px 60px rgba(0,0,0,0.45)",
+            }}
+          >
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridTemplateRows: "repeat(3, 1fr)", gap: 8, width: "100%", height: "100%" }}>
+              {cells.flatMap((row, rowIndex) =>
+                row.map((color, colIndex) => (
+                  <div
+                    key={`${rowIndex}-${colIndex}`}
+                    style={{
+                      borderRadius: 10,
+                      border: "1px solid rgba(255,255,255,0.07)",
+                      background: `radial-gradient(circle at 40% 35%, ${color}, rgba(20,30,20,0.96) 62%)`,
+                      boxShadow: "inset 0 0 18px rgba(255,255,255,0.06)",
+                      position: "relative",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <span
+                        key={i}
+                        style={{
+                          position: "absolute",
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          background: "rgba(255,255,255,0.18)",
+                          left: 12 + (i % 2) * 28,
+                          top: 14 + Math.floor(i / 2) * 24,
+                          boxShadow: "0 0 8px rgba(255,255,255,0.12)",
+                        }}
+                      />
+                    ))}
+                  </div>
+                ))
+              )}
             </div>
           </div>
+        </div>
 
-          <div className="grid gap-3">
-            {zones.map((zone) => (
-              <div key={zone.title} className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                <div className={`mb-3 h-16 rounded-2xl bg-gradient-to-br ${zone.tone}`} />
-                <div className="text-sm font-medium text-white">{zone.title}</div>
-                <div className="mt-2 text-sm leading-6 text-white/50">{zone.desc}</div>
-              </div>
+        <div style={{ position: "absolute", bottom: 18, left: 22, right: 22, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12 }}>
+          <div style={{ display: "flex", gap: 10 }}>
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  background: "radial-gradient(circle at 30% 30%, rgba(255,230,170,0.95), rgba(162,123,58,0.88))",
+                  boxShadow: "0 0 20px rgba(255,215,120,0.35)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                }}
+              />
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 12 }}>
+            {[
+              { icon: Wand2, label: "IA" },
+              { icon: Pencil, label: "Modifier" },
+              { icon: Save, label: "Sauver" },
+            ].map(({ icon: Icon, label }) => (
+              <button
+                key={label}
+                onClick={() => setView(label === "Modifier" ? "beds" : label === "IA" ? "seedlings" : "dashboard")}
+                style={{
+                  width: 92,
+                  height: 86,
+                  borderRadius: 18,
+                  border: "1px solid rgba(190,210,255,0.15)",
+                  background: "linear-gradient(180deg, rgba(25,30,61,0.85), rgba(9,10,20,0.90))",
+                  color: "#f1f3ff",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 9,
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.32)",
+                  cursor: "pointer",
+                }}
+              >
+                <Icon size={22} />
+                <span style={{ fontSize: 14, fontWeight: 700 }}>{label}</span>
+              </button>
             ))}
           </div>
         </div>
-      </SectionCard>
+      </div>
+    </div>
+  );
+}
+
+function StatusStrip({ alerts }) {
+  const urgent = alerts.filter((a) => !a.done && a.priority === "Haute").length;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14 }}>
+      <div style={thinPanelStyle({ padding: 18 })}>
+        <div style={{ color: "#b9ffd9", fontWeight: 800, marginBottom: 10, fontSize: 15, letterSpacing: 0.6 }}>IA SUGGESTION</div>
+        <div style={{ color: "#eef3ff", fontSize: 15, lineHeight: 1.5 }}>Déplacer 3 pots vers la zone Est et surveiller l’humidité du matin.</div>
+      </div>
+      <div style={thinPanelStyle({ padding: 18 })}>
+        <div style={{ color: "#d9c0ff", fontWeight: 800, marginBottom: 10, fontSize: 15, letterSpacing: 0.6 }}>AUJOURD’HUI</div>
+        <div style={{ color: "#eef3ff", fontSize: 15, lineHeight: 1.5 }}>Aération douce des mini-serres, contrôle lumière et repérage zones chaudes.</div>
+      </div>
+      <div style={thinPanelStyle({ padding: 18 })}>
+        <div style={{ color: "#f6f0ff", fontWeight: 800, marginBottom: 10, fontSize: 15, letterSpacing: 0.6 }}>STATUT</div>
+        <div style={{ color: "#eef3ff", fontSize: 15, lineHeight: 1.5 }}>Enregistré · {urgent} alerte(s) haute(s) à traiter.</div>
+      </div>
+    </div>
+  );
+}
+
+function SectionShell({ title, subtitle, children, right }) {
+  return (
+    <div style={panelStyle({ padding: 18 })}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#f2f4ff" }}>{title}</div>
+          {subtitle ? <div style={{ marginTop: 6, fontSize: 13.5, color: "rgba(213,222,255,0.62)", lineHeight: 1.5 }}>{subtitle}</div> : null}
+        </div>
+        {right}
+      </div>
+      {children}
     </div>
   );
 }
 
 function BedsView({ beds, setBeds }) {
-  const [form, setForm] = useState({
-    name: "",
-    zone: "",
-    exposure: "",
-    status: "Disponible",
-    crop: "",
-    note: "",
-  });
+  const [form, setForm] = useState({ name: "", zone: "", exposure: "", status: "Disponible", crop: "", note: "" });
   const [editingId, setEditingId] = useState(null);
 
   function resetForm() {
-    setForm({
-      name: "",
-      zone: "",
-      exposure: "",
-      status: "Disponible",
-      crop: "",
-      note: "",
-    });
+    setForm({ name: "", zone: "", exposure: "", status: "Disponible", crop: "", note: "" });
     setEditingId(null);
   }
 
-  function handleSubmit(e) {
+  function submit(e) {
     e.preventDefault();
     if (!form.name.trim()) return;
 
@@ -552,127 +676,69 @@ function BedsView({ beds, setBeds }) {
     resetForm();
   }
 
-  function startEdit(bed) {
+  function edit(bed) {
     setEditingId(bed.id);
-    setForm({
-      name: bed.name,
-      zone: bed.zone,
-      exposure: bed.exposure,
-      status: bed.status,
-      crop: bed.crop,
-      note: bed.note,
-    });
+    setForm({ name: bed.name, zone: bed.zone, exposure: bed.exposure, status: bed.status, crop: bed.crop, note: bed.note });
   }
 
-  function removeBed(id) {
+  function remove(id) {
     setBeds((current) => current.filter((bed) => bed.id !== id));
     if (editingId === id) resetForm();
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-      <SectionCard
-        title="Créer / modifier une case"
-        subtitle="Tu voulais pouvoir les créer et les supprimer proprement : c’est intégré dans cette version"
-      >
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <Input label="Nom" value={form.name} onChange={(value) => setForm((f) => ({ ...f, name: value }))} />
-          <Input label="Zone" value={form.zone} onChange={(value) => setForm((f) => ({ ...f, zone: value }))} />
-          <Input
-            label="Exposition"
-            value={form.exposure}
-            onChange={(value) => setForm((f) => ({ ...f, exposure: value }))}
-          />
-          <div className="grid gap-3 md:grid-cols-2">
-            <Select
-              label="Statut"
-              value={form.status}
-              onChange={(value) => setForm((f) => ({ ...f, status: value }))}
-              options={["Disponible", "Préparation", "Planté", "Surveillance"]}
-            />
-            <Input label="Culture" value={form.crop} onChange={(value) => setForm((f) => ({ ...f, crop: value }))} />
+    <div style={{ display: "grid", gridTemplateColumns: "0.92fr 1.08fr", gap: 16 }}>
+      <SectionShell title="Gestion des cases" subtitle="Créer, modifier et supprimer tes parcelles tout en restant dans la logique visuelle sombre et immersive.">
+        <form onSubmit={submit}>
+          <Input label="Nom" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} />
+          <Input label="Zone" value={form.zone} onChange={(v) => setForm((f) => ({ ...f, zone: v }))} />
+          <Input label="Exposition" value={form.exposure} onChange={(v) => setForm((f) => ({ ...f, exposure: v }))} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <Select label="Statut" value={form.status} onChange={(v) => setForm((f) => ({ ...f, status: v }))} options={["Disponible", "Préparation", "Planté", "Surveillance"]} />
+            <Input label="Culture" value={form.crop} onChange={(v) => setForm((f) => ({ ...f, crop: v }))} />
           </div>
-          <TextArea label="Note" value={form.note} onChange={(value) => setForm((f) => ({ ...f, note: value }))} />
-
-          <div className="flex flex-wrap gap-3 pt-2">
-            <button className="inline-flex items-center gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100 transition hover:bg-emerald-400/15">
-              <Plus size={16} />
-              {editingId ? "Enregistrer la modification" : "Ajouter la case"}
-            </button>
-            <button
-              type="button"
-              onClick={resetForm}
-              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70 transition hover:bg-white/10"
-            >
-              Réinitialiser
-            </button>
+          <TextArea label="Note" value={form.note} onChange={(v) => setForm((f) => ({ ...f, note: v }))} placeholder="Ex : zone à fort potentiel pour tomates ou parcelle à protéger en priorité." />
+          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+            <button type="submit" style={actionPrimaryStyle()}>{editingId ? "Enregistrer" : "Ajouter la case"}</button>
+            <button type="button" style={actionSecondaryStyle()} onClick={resetForm}>Réinitialiser</button>
           </div>
         </form>
-      </SectionCard>
+      </SectionShell>
 
-      <SectionCard title="Cases du jardin" subtitle="Vue manipulable et orientée action">
-        <div className="grid gap-4">
+      <SectionShell title="Parcelles" subtitle="Vue opérationnelle des cases du jardin.">
+        <div style={{ display: "grid", gap: 12 }}>
           {beds.map((bed) => (
-            <motion.div
-              layout
-              key={bed.id}
-              className="rounded-[26px] border border-white/10 bg-white/5 p-4"
-              whileHover={{ y: -2 }}
-            >
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div key={bed.id} style={thinPanelStyle({ padding: 14 })}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
                 <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="text-sm font-semibold text-white">{bed.name}</div>
-                    <Badge tone={bed.status === "Disponible" ? "blue" : bed.status === "Planté" ? "green" : "amber"}>
-                      {bed.status}
-                    </Badge>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f4ff" }}>{bed.name}</div>
+                    <Badge tone={bed.status === "Disponible" ? "blue" : bed.status === "Planté" ? "green" : "amber"}>{bed.status}</Badge>
                   </div>
-                  <div className="mt-2 text-sm text-white/50">
-                    {bed.zone} · {bed.exposure}
-                  </div>
-                  <div className="mt-2 text-sm text-white/70">Culture : {bed.crop || "—"}</div>
-                  <div className="mt-3 text-sm leading-6 text-white/45">{bed.note || "Aucune note."}</div>
+                  <div style={{ marginTop: 6, color: "rgba(214,222,255,0.62)", fontSize: 13 }}>{bed.zone} · {bed.exposure}</div>
+                  <div style={{ marginTop: 8, color: "#edf1ff", fontSize: 14 }}>Culture : {bed.crop || "—"}</div>
+                  <div style={{ marginTop: 8, color: "rgba(214,222,255,0.60)", fontSize: 13.5, lineHeight: 1.5 }}>{bed.note || "Aucune note."}</div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => startEdit(bed)}
-                    className="rounded-2xl border border-white/10 bg-white/5 p-3 text-white/70 transition hover:bg-white/10"
-                  >
-                    <Pencil size={16} />
-                  </button>
-                  <button
-                    onClick={() => removeBed(bed.id)}
-                    className="rounded-2xl border border-rose-300/20 bg-rose-400/10 p-3 text-rose-200 transition hover:bg-rose-400/15"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button style={iconSmallButtonStyle()} onClick={() => edit(bed)}><Pencil size={16} /></button>
+                  <button style={iconSmallDangerStyle()} onClick={() => remove(bed.id)}><Trash2 size={16} /></button>
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
-      </SectionCard>
+      </SectionShell>
     </div>
   );
 }
 
 function SeedlingsView({ seedlings, setSeedlings }) {
-  const emptyForm = {
-    name: "",
-    variety: "",
-    sowingDate: "",
-    location: "",
-    status: "Prévu",
-    humidity: "",
-    light: "",
-    note: "",
-  };
-
-  const [form, setForm] = useState(emptyForm);
+  const empty = { name: "", variety: "", sowingDate: "", location: "", status: "Prévu", humidity: "", light: "", note: "" };
+  const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState(null);
 
   function resetForm() {
-    setForm(emptyForm);
+    setForm(empty);
     setEditingId(null);
   }
 
@@ -681,7 +747,7 @@ function SeedlingsView({ seedlings, setSeedlings }) {
     if (!form.name.trim()) return;
 
     if (editingId) {
-      setSeedlings((current) => current.map((item) => (item.id === editingId ? { ...item, ...form } : item)));
+      setSeedlings((current) => current.map((s) => (s.id === editingId ? { ...s, ...form } : s)));
     } else {
       setSeedlings((current) => [{ id: crypto.randomUUID(), ...form }, ...current]);
     }
@@ -690,126 +756,65 @@ function SeedlingsView({ seedlings, setSeedlings }) {
 
   function edit(seedling) {
     setEditingId(seedling.id);
-    setForm({
-      name: seedling.name,
-      variety: seedling.variety,
-      sowingDate: seedling.sowingDate,
-      location: seedling.location,
-      status: seedling.status,
-      humidity: seedling.humidity,
-      light: seedling.light,
-      note: seedling.note,
-    });
+    setForm({ ...seedling });
   }
 
   function remove(id) {
-    setSeedlings((current) => current.filter((item) => item.id !== id));
+    setSeedlings((current) => current.filter((s) => s.id !== id));
     if (editingId === id) resetForm();
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
-      <SectionCard
-        title="Gestion semis"
-        subtitle="Le vrai sous-menu demandé : date, emplacement, statut, humidité, lumière, notes"
-        right={<Badge tone="green">Suivi 2026</Badge>}
-      >
-        <form onSubmit={submit} className="space-y-3">
-          <Input label="Culture" value={form.name} onChange={(value) => setForm((f) => ({ ...f, name: value }))} />
-          <Input label="Variété" value={form.variety} onChange={(value) => setForm((f) => ({ ...f, variety: value }))} />
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input
-              label="Date du semis"
-              type="date"
-              value={form.sowingDate}
-              onChange={(value) => setForm((f) => ({ ...f, sowingDate: value }))}
-            />
-            <Input label="Emplacement" value={form.location} onChange={(value) => setForm((f) => ({ ...f, location: value }))} />
+    <div style={{ display: "grid", gridTemplateColumns: "0.92fr 1.08fr", gap: 16 }}>
+      <SectionShell title="Gestion semis" subtitle="Date, emplacement, statut, humidité, lumière et notes, avec un vrai habillage proche du modèle visuel.">
+        <form onSubmit={submit}>
+          <Input label="Culture" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} />
+          <Input label="Variété" value={form.variety} onChange={(v) => setForm((f) => ({ ...f, variety: v }))} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <Input type="date" label="Date du semis" value={form.sowingDate} onChange={(v) => setForm((f) => ({ ...f, sowingDate: v }))} />
+            <Input label="Emplacement" value={form.location} onChange={(v) => setForm((f) => ({ ...f, location: v }))} />
           </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            <Select
-              label="Statut"
-              value={form.status}
-              onChange={(value) => setForm((f) => ({ ...f, status: value }))}
-              options={["Prévu", "Semé", "Levée", "Repiqué", "Planté", "Récolté"]}
-            />
-            <Input label="Humidité" value={form.humidity} onChange={(value) => setForm((f) => ({ ...f, humidity: value }))} />
-            <Input label="Lumière" value={form.light} onChange={(value) => setForm((f) => ({ ...f, light: value }))} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <Select label="Statut" value={form.status} onChange={(v) => setForm((f) => ({ ...f, status: v }))} options={["Prévu", "Semé", "Levée", "Repiqué", "Planté", "Récolté"]} />
+            <Input label="Humidité" value={form.humidity} onChange={(v) => setForm((f) => ({ ...f, humidity: v }))} />
+            <Input label="Lumière" value={form.light} onChange={(v) => setForm((f) => ({ ...f, light: v }))} />
           </div>
-          <TextArea label="Note" value={form.note} onChange={(value) => setForm((f) => ({ ...f, note: value }))} />
-
-          <div className="flex flex-wrap gap-3 pt-2">
-            <button className="inline-flex items-center gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100 transition hover:bg-emerald-400/15">
-              <Plus size={16} />
-              {editingId ? "Mettre à jour le semis" : "Ajouter le semis"}
-            </button>
-            <button
-              type="button"
-              onClick={resetForm}
-              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70 transition hover:bg-white/10"
-            >
-              Réinitialiser
-            </button>
+          <TextArea label="Note" value={form.note} onChange={(v) => setForm((f) => ({ ...f, note: v }))} placeholder="Ex : LED prioritaire, terreau encore humide, légère condensation le matin." />
+          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+            <button type="submit" style={actionPrimaryStyle()}>{editingId ? "Mettre à jour" : "Ajouter le semis"}</button>
+            <button type="button" style={actionSecondaryStyle()} onClick={resetForm}>Réinitialiser</button>
           </div>
         </form>
-      </SectionCard>
+      </SectionShell>
 
-      <SectionCard title="Liste des semis" subtitle="Pensée pour le suivi réel, pas seulement pour faire joli">
-        <div className="space-y-4">
-          {seedlings.map((seedling) => {
-            const tone =
-              seedling.status === "Semé"
-                ? "green"
-                : seedling.status === "Prévu"
-                ? "amber"
-                : seedling.status === "Levée"
-                ? "blue"
-                : "default";
-
-            return (
-              <motion.div
-                layout
-                key={seedling.id}
-                className="rounded-[26px] border border-white/10 bg-white/5 p-4"
-                whileHover={{ y: -2 }}
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="text-base font-semibold text-white">{seedling.name}</div>
-                      <Badge tone={tone}>{seedling.status}</Badge>
-                    </div>
-                    <div className="mt-2 text-sm text-white/50">
-                      {seedling.variety || "Variété non précisée"}
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Badge tone="default">Date : {seedling.sowingDate || "—"}</Badge>
-                      <Badge tone="default">Lieu : {seedling.location || "—"}</Badge>
-                      <Badge tone="default">Humidité : {seedling.humidity || "—"}</Badge>
-                      <Badge tone="default">Lumière : {seedling.light || "—"}</Badge>
-                    </div>
-                    <div className="mt-3 text-sm leading-6 text-white/45">{seedling.note || "Aucune note pour le moment."}</div>
+      <SectionShell title="Suivi des semis" subtitle="Conçu pour ton suivi réel et chronologique.">
+        <div style={{ display: "grid", gap: 12 }}>
+          {seedlings.map((seedling) => (
+            <div key={seedling.id} style={thinPanelStyle({ padding: 14 })}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: "#f1f4ff" }}>{seedling.name}</div>
+                    <Badge tone={seedling.status === "Semé" ? "green" : seedling.status === "Prévu" ? "amber" : "blue"}>{seedling.status}</Badge>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => edit(seedling)}
-                      className="rounded-2xl border border-white/10 bg-white/5 p-3 text-white/70 transition hover:bg-white/10"
-                    >
-                      <Pencil size={16} />
-                    </button>
-                    <button
-                      onClick={() => remove(seedling.id)}
-                      className="rounded-2xl border border-rose-300/20 bg-rose-400/10 p-3 text-rose-200 transition hover:bg-rose-400/15"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                  <div style={{ marginTop: 6, fontSize: 13, color: "rgba(214,222,255,0.62)" }}>{seedling.variety || "Variété non précisée"}</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                    <Badge>Date : {seedling.sowingDate || "—"}</Badge>
+                    <Badge>Lieu : {seedling.location || "—"}</Badge>
+                    <Badge>Humidité : {seedling.humidity || "—"}</Badge>
+                    <Badge>Lumière : {seedling.light || "—"}</Badge>
                   </div>
+                  <div style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.5, color: "rgba(214,222,255,0.62)" }}>{seedling.note || "Aucune note."}</div>
                 </div>
-              </motion.div>
-            );
-          })}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button style={iconSmallButtonStyle()} onClick={() => edit(seedling)}><Pencil size={16} /></button>
+                  <button style={iconSmallDangerStyle()} onClick={() => remove(seedling.id)}><Trash2 size={16} /></button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-      </SectionCard>
+      </SectionShell>
     </div>
   );
 }
@@ -822,201 +827,214 @@ function AlertsView({ alerts, setAlerts }) {
   function addAlert(e) {
     e.preventDefault();
     if (!title.trim()) return;
-    setAlerts((current) => [
-      { id: crypto.randomUUID(), title: title.trim(), category, priority, done: false },
-      ...current,
-    ]);
+    setAlerts((current) => [{ id: crypto.randomUUID(), title: title.trim(), category, priority, done: false }, ...current]);
     setTitle("");
     setCategory("Semis");
     setPriority("Moyenne");
   }
 
   function toggleDone(id) {
-    setAlerts((current) => current.map((item) => (item.id === id ? { ...item, done: !item.done } : item)));
+    setAlerts((current) => current.map((a) => (a.id === id ? { ...a, done: !a.done } : a)));
   }
 
   function remove(id) {
-    setAlerts((current) => current.filter((item) => item.id !== id));
+    setAlerts((current) => current.filter((a) => a.id !== id));
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
-      <SectionCard title="Nouvelle alarme" subtitle="Pour rester dans le thème tour de contrôle et vigilance">
-        <form onSubmit={addAlert} className="space-y-3">
+    <div style={{ display: "grid", gridTemplateColumns: "0.86fr 1.14fr", gap: 16 }}>
+      <SectionShell title="Alarmes" subtitle="Pour conserver la logique tour de contrôle et vigilance concrète.">
+        <form onSubmit={addAlert}>
           <Input label="Titre" value={title} onChange={setTitle} />
-          <div className="grid gap-3 md:grid-cols-2">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Select label="Catégorie" value={category} onChange={setCategory} options={["Semis", "Humidité", "Lumière", "Jardin", "Protection"]} />
             <Select label="Priorité" value={priority} onChange={setPriority} options={["Basse", "Moyenne", "Haute"]} />
           </div>
-          <button className="inline-flex items-center gap-2 rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 transition hover:bg-amber-400/15">
-            <Bell size={16} />
-            Ajouter l’alarme
-          </button>
+          <button type="submit" style={actionPrimaryStyle()}>Ajouter l’alarme</button>
         </form>
-      </SectionCard>
+      </SectionShell>
 
-      <SectionCard title="Mur des alertes" subtitle="Ce qui demande ton attention concrète">
-        <div className="space-y-3">
+      <SectionShell title="Mur des alertes" subtitle="Ce qui demande ton attention réelle.">
+        <div style={{ display: "grid", gap: 12 }}>
           {alerts.map((alert) => (
-            <div key={alert.id} className="rounded-[26px] border border-white/10 bg-white/5 p-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div key={alert.id} style={thinPanelStyle({ padding: 14 })}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                 <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className={cn("text-sm font-medium", alert.done ? "text-white/35 line-through" : "text-white")}>
-                      {alert.title}
-                    </div>
-                    <Badge tone={alert.priority === "Haute" ? "red" : alert.priority === "Moyenne" ? "amber" : "blue"}>
-                      {alert.priority}
-                    </Badge>
-                    <Badge tone="default">{alert.category}</Badge>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: alert.done ? "rgba(241,244,255,0.38)" : "#f1f4ff", textDecoration: alert.done ? "line-through" : "none" }}>{alert.title}</div>
+                    <Badge tone={alert.priority === "Haute" ? "red" : alert.priority === "Moyenne" ? "amber" : "blue"}>{alert.priority}</Badge>
+                    <Badge>{alert.category}</Badge>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => toggleDone(alert.id)}
-                    className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/70 transition hover:bg-white/10"
-                  >
-                    {alert.done ? "Réactiver" : "Terminé"}
-                  </button>
-                  <button
-                    onClick={() => remove(alert.id)}
-                    className="rounded-2xl border border-rose-300/20 bg-rose-400/10 p-3 text-rose-200 transition hover:bg-rose-400/15"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button style={actionSecondaryStyle()} onClick={() => toggleDone(alert.id)}>{alert.done ? "Réactiver" : "Terminé"}</button>
+                  <button style={iconSmallDangerStyle()} onClick={() => remove(alert.id)}><Trash2 size={16} /></button>
                 </div>
               </div>
             </div>
           ))}
         </div>
-      </SectionCard>
+      </SectionShell>
     </div>
   );
 }
 
-function ProtectionView() {
-  const items = [
-    {
-      icon: Shield,
-      title: "Protection générale",
-      text: "Prévoir la logique filets / barrières / surveillance avant la mise en place définitive des cultures les plus sensibles.",
-    },
-    {
-      icon: Droplets,
-      title: "Humidité & condensation",
-      text: "Si la mini-serre perle trop, aérer progressivement pour éviter un environnement trop fermé.",
-    },
-    {
-      icon: Sun,
-      title: "Lumière",
-      text: "Prioriser les LED sur piments et poivrons, et réserver les meilleurs emplacements lumineux aux semis exigeants.",
-    },
-    {
-      icon: Thermometer,
-      title: "Chaleur",
-      text: "Stabilité avant tout : éviter les gros écarts de température si les semis viennent d’être lancés.",
-    },
-  ];
-
+function PlanView() {
   return (
-    <SectionCard title="Protection & stratégie" subtitle="Une section plus immersive pour tout ce qui touche à la vigilance du potager">
-      <div className="grid gap-4 md:grid-cols-2">
-        {items.map((item) => {
-          const Icon = item.icon;
-          return (
-            <div key={item.title} className="rounded-[28px] border border-white/10 bg-white/5 p-5">
-              <div className="mb-4 inline-flex rounded-2xl border border-white/10 bg-white/10 p-3 text-white/80">
-                <Icon size={18} />
-              </div>
-              <div className="text-base font-medium text-white">{item.title}</div>
-              <div className="mt-2 text-sm leading-6 text-white/50">{item.text}</div>
+    <SectionShell title="Plan du jardin" subtitle="Vue conceptuelle fidèle à la logique immersive : scène centrale, pilotage latéral, lecture rapide des zones.">
+      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 16 }}>
+        <div style={thinPanelStyle({ padding: 18 })}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, minHeight: 360 }}>
+            <div style={zoneBoxStyle("rgba(100,160,255,0.18)", "Mur gauche", "Zone de contrôle rapproché, adaptée au suivi et aux cultures délicates.")} />
+            <div style={zoneBoxStyle("rgba(112,255,162,0.16)", "Centre", "Cases principales, circulation et vision d’ensemble du potager.")} />
+            <div style={zoneBoxStyle("rgba(255,198,109,0.16)", "Serre / chaleur", "Point technique pour les besoins les plus sensibles en lumière et humidité.")} />
+          </div>
+        </div>
+        <div style={{ display: "grid", gap: 12 }}>
+          {[
+            ["Mur gauche", "Mi-ombre, accès pratique, zone stratégique."],
+            ["Centre du jardin", "Cultures majeures et structure globale."],
+            ["Zone protections", "Nuisibles, barrières, surveillance spécifique."],
+            ["Serre / appui", "Zone chaude et technique pour tes semis."],
+          ].map(([title, text]) => (
+            <div key={title} style={thinPanelStyle({ padding: 14 })}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f4ff" }}>{title}</div>
+              <div style={{ marginTop: 8, fontSize: 13.5, color: "rgba(214,222,255,0.62)", lineHeight: 1.5 }}>{text}</div>
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
-    </SectionCard>
+    </SectionShell>
   );
 }
 
-function CalendarView({ seedlings }) {
-  const entries = seedlings
-    .filter((item) => item.sowingDate)
-    .sort((a, b) => a.sowingDate.localeCompare(b.sowingDate));
+function zoneBoxStyle(color, title, text) {
+  return {
+    ...thinPanelStyle({ padding: 16, background: `linear-gradient(180deg, ${color}, rgba(6,9,18,0.78))` }),
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+  };
+}
 
+function ProtectionView() {
   return (
-    <SectionCard title="Chronologie réelle" subtitle="Pour garder une logique de suivi chronologique claire">
-      <div className="space-y-4">
-        {entries.length === 0 ? (
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
-            Aucun événement daté pour le moment.
+    <SectionShell title="Protection & stratégie" subtitle="Bloc pensé comme une console d’aide à la décision.">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        {[
+          [Shield, "Protection générale", "Prévoir filets, barrières et logique anti-nuisibles avant mise en place définitive."],
+          [Droplets, "Humidité & condensation", "Aération progressive si les mini-serres perlaient trop le matin."],
+          [Leaf, "Lumière", "Prioriser les LED sur piments et poivrons, garder les zones lumineuses pour les semis exigeants."],
+          [CalendarDays, "Chronologie utile", "Chaque décision doit rester liée à l’état réel du potager, pas seulement au tableau de bord."],
+        ].map(([Icon, title, text]) => (
+          <div key={title} style={thinPanelStyle({ padding: 16 })}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#f1f4ff", fontWeight: 800, fontSize: 15 }}>
+              <Icon size={18} />
+              {title}
+            </div>
+            <div style={{ marginTop: 10, fontSize: 13.5, color: "rgba(214,222,255,0.62)", lineHeight: 1.6 }}>{text}</div>
           </div>
+        ))}
+      </div>
+    </SectionShell>
+  );
+}
+
+function TimelineView({ seedlings }) {
+  const entries = seedlings.filter((s) => s.sowingDate).sort((a, b) => a.sowingDate.localeCompare(b.sowingDate));
+  return (
+    <SectionShell title="Chronologie réelle" subtitle="Le site reste un support du réel : dates, étapes et suivi utile.">
+      <div style={{ display: "grid", gap: 14 }}>
+        {entries.length === 0 ? (
+          <div style={thinPanelStyle({ padding: 16, color: "rgba(214,222,255,0.62)" })}>Aucune entrée datée pour le moment.</div>
         ) : (
           entries.map((entry, index) => (
-            <div key={entry.id} className="flex gap-4">
-              <div className="flex w-10 flex-col items-center">
-                <div className="mt-1 h-3 w-3 rounded-full bg-emerald-300 shadow-[0_0_16px_rgba(110,231,183,0.8)]" />
-                {index !== entries.length - 1 ? <div className="mt-2 w-px flex-1 bg-white/10" /> : null}
+            <div key={entry.id} style={{ display: "grid", gridTemplateColumns: "24px 1fr", gap: 14, alignItems: "stretch" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div style={{ width: 12, height: 12, borderRadius: "50%", background: "rgba(255,214,120,0.96)", boxShadow: "0 0 14px rgba(255,214,120,0.65)" }} />
+                {index !== entries.length - 1 ? <div style={{ width: 2, flex: 1, marginTop: 6, background: "rgba(255,255,255,0.08)" }} /> : null}
               </div>
-              <div className="w-full rounded-[26px] border border-white/10 bg-white/5 p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-sm font-semibold text-white">{entry.sowingDate}</div>
+              <div style={thinPanelStyle({ padding: 14 })}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <div style={{ color: "#f1f4ff", fontWeight: 800 }}>{entry.sowingDate}</div>
                   <Badge tone="green">{entry.status}</Badge>
                 </div>
-                <div className="mt-2 text-sm text-white/70">{entry.name}</div>
-                <div className="mt-1 text-sm text-white/45">{entry.location || "Emplacement non précisé"}</div>
+                <div style={{ marginTop: 8, color: "#edf1ff", fontSize: 14.5 }}>{entry.name}</div>
+                <div style={{ marginTop: 4, color: "rgba(214,222,255,0.62)", fontSize: 13 }}>{entry.location || "Emplacement non précisé"}</div>
               </div>
             </div>
           ))
         )}
       </div>
-    </SectionCard>
+    </SectionShell>
   );
 }
 
-function Input({ label, value, onChange, type = "text" }) {
+function Dashboard({ seedlings, alerts, notes, setNotes, setView }) {
   return (
-    <label className="block space-y-2">
-      <span className="text-xs uppercase tracking-[0.22em] text-white/40">{label}</span>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-white/25"
-      />
-    </label>
+    <div style={{ display: "grid", gap: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.65fr 0.72fr", gap: 16 }}>
+        <BigBoard setView={setView} />
+        <OverviewPanel setView={setView} seedlings={seedlings} alerts={alerts} notes={notes} setNotes={setNotes} />
+      </div>
+      <StatusStrip alerts={alerts} />
+    </div>
   );
 }
 
-function Select({ label, value, onChange, options }) {
-  return (
-    <label className="block space-y-2">
-      <span className="text-xs uppercase tracking-[0.22em] text-white/40">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none"
-      >
-        {options.map((option) => (
-          <option key={option} value={option} className="bg-slate-900 text-white">
-            {option}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
+function actionPrimaryStyle() {
+  return {
+    padding: "12px 16px",
+    borderRadius: 14,
+    border: "1px solid rgba(255,215,140,0.24)",
+    background: "linear-gradient(180deg, rgba(100,110,200,0.72), rgba(35,42,95,0.84))",
+    color: "#fff8ed",
+    fontWeight: 800,
+    fontSize: 14,
+    cursor: "pointer",
+    boxShadow: "0 10px 28px rgba(29,35,82,0.28)",
+  };
 }
 
-function TextArea({ label, value, onChange }) {
-  return (
-    <label className="block space-y-2">
-      <span className="text-xs uppercase tracking-[0.22em] text-white/40">{label}</span>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="min-h-[110px] w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-white/25"
-      />
-    </label>
-  );
+function actionSecondaryStyle() {
+  return {
+    padding: "12px 16px",
+    borderRadius: 14,
+    border: "1px solid rgba(180,210,255,0.12)",
+    background: "linear-gradient(180deg, rgba(25,30,60,0.72), rgba(9,12,24,0.82))",
+    color: "#edf1ff",
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: "pointer",
+  };
+}
+
+function iconSmallButtonStyle() {
+  return {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    border: "1px solid rgba(180,210,255,0.12)",
+    background: "linear-gradient(180deg, rgba(28,36,72,0.72), rgba(8,11,24,0.84))",
+    color: "#edf1ff",
+    cursor: "pointer",
+    display: "grid",
+    placeItems: "center",
+  };
+}
+
+function iconSmallDangerStyle() {
+  return {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    border: "1px solid rgba(255,120,120,0.16)",
+    background: "linear-gradient(180deg, rgba(82,28,38,0.72), rgba(24,8,12,0.84))",
+    color: "#ffd2d2",
+    cursor: "pointer",
+    display: "grid",
+    placeItems: "center",
+  };
 }
 
 export default function App() {
@@ -1025,105 +1043,140 @@ export default function App() {
   const [seedlings, setSeedlings] = useLocalStorageState(STORAGE_KEYS.seedlings, initialSeedlings);
   const [alerts, setAlerts] = useLocalStorageState(STORAGE_KEYS.alerts, initialAlerts);
   const [notes, setNotes] = useLocalStorageState(STORAGE_KEYS.notes, "");
+  const width = useWindowWidth();
+  const mobile = width < 980;
 
-  const navigation = [
-    { key: "dashboard", label: "Tour de contrôle", icon: Home },
-    { key: "plan", label: "Plan du jardin", icon: Map },
+  const nav = [
+    { key: "dashboard", label: "Tour", icon: Home },
+    { key: "plan", label: "Plan", icon: Map },
     { key: "beds", label: "Cases", icon: LayoutGrid },
-    { key: "seedlings", label: "Gestion semis", icon: Sprout },
+    { key: "seedlings", label: "Semis", icon: Sprout },
     { key: "alerts", label: "Alarmes", icon: Bell },
     { key: "protection", label: "Protection", icon: Shield },
     { key: "timeline", label: "Chronologie", icon: CalendarDays },
   ];
 
+  function renderView() {
+    if (view === "plan") return <PlanView />;
+    if (view === "beds") return <BedsView beds={beds} setBeds={setBeds} />;
+    if (view === "seedlings") return <SeedlingsView seedlings={seedlings} setSeedlings={setSeedlings} />;
+    if (view === "alerts") return <AlertsView alerts={alerts} setAlerts={setAlerts} />;
+    if (view === "protection") return <ProtectionView />;
+    if (view === "timeline") return <TimelineView seedlings={seedlings} />;
+    return <Dashboard seedlings={seedlings} alerts={alerts} notes={notes} setNotes={setNotes} setView={setView} />;
+  }
+
   return (
-    <div className="min-h-screen bg-[#07110f] text-white">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.10),transparent_25%),radial-gradient(circle_at_80%_20%,rgba(99,102,241,0.10),transparent_25%),linear-gradient(180deg,#07110f,#091715,#081111)]" />
+    <div
+      style={{
+        minHeight: "100vh",
+        color: "#eef2ff",
+        background:
+          "radial-gradient(circle at 18% 18%, rgba(42,58,138,0.26), transparent 25%), radial-gradient(circle at 80% 22%, rgba(122,112,255,0.16), transparent 22%), radial-gradient(circle at 48% 80%, rgba(255,196,92,0.08), transparent 18%), linear-gradient(180deg, #040713 0%, #07111f 35%, #07131b 100%)",
+        position: "relative",
+        overflow: "hidden",
+        fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "radial-gradient(circle at 50% 0%, rgba(255,255,255,0.05), transparent 20%), linear-gradient(180deg, rgba(255,255,255,0.02), transparent 16%), linear-gradient(180deg, rgba(0,0,0,0.00), rgba(0,0,0,0.22))",
+        }}
+      />
       <Fireflies />
+      <MoonGlow />
 
-      <div className="relative z-10 mx-auto max-w-[1600px] px-4 py-4 md:px-6 md:py-6 xl:px-8">
-        <Header view={view} setView={setView} />
-
-        <div className="mt-6 grid gap-6 xl:grid-cols-[280px_1fr]">
-          <aside className="h-fit rounded-[30px] border border-white/10 bg-white/5 p-4 shadow-[0_20px_80px_rgba(0,0,0,0.25)] backdrop-blur-2xl">
-            <div className="mb-4 flex items-center gap-3 px-2">
-              <div className="rounded-2xl border border-white/10 bg-white/10 p-2 text-emerald-200">
-                <Leaf size={18} />
+      <div style={{ maxWidth: 1500, margin: "0 auto", padding: mobile ? "18px 14px 100px" : "30px 26px 28px", position: "relative", zIndex: 1 }}>
+        <div style={panelStyle({ padding: mobile ? 18 : 24, marginBottom: 18, overflow: "hidden", position: "relative" })}>
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(255,255,255,0.05), transparent 30%, rgba(255,224,160,0.03))" }} />
+          <div style={{ display: "flex", flexDirection: mobile ? "column" : "row", justifyContent: "space-between", alignItems: mobile ? "flex-start" : "center", gap: 18, position: "relative" }}>
+            <div>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 999, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 12, fontWeight: 700, letterSpacing: 2.2, textTransform: "uppercase", color: "rgba(233,239,255,0.82)" }}>
+                <Sparkles size={14} />
+                Mon Potager
               </div>
-              <div>
-                <div className="text-sm font-medium text-white">Navigation V35</div>
-                <div className="text-xs text-white/40">Menus accessibles en un clic</div>
+              <div style={{ marginTop: 16, fontSize: mobile ? 32 : 42, lineHeight: 1.05, fontWeight: 900, maxWidth: 920, letterSpacing: 0.6 }}>
+                Tour de contrôle nocturne inspirée de ton visuel de référence.
               </div>
-            </div>
-
-            <div className="space-y-2">
-              {navigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.key}
-                    onClick={() => setView(item.key)}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all duration-300",
-                      view === item.key
-                        ? "border-emerald-300/30 bg-emerald-400/10 text-white shadow-[0_0_40px_rgba(52,211,153,0.12)]"
-                        : "border-white/8 bg-black/10 text-white/65 hover:border-white/15 hover:bg-white/5 hover:text-white"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "rounded-xl p-2",
-                        view === item.key ? "bg-emerald-400/15 text-emerald-200" : "bg-white/5 text-white/60"
-                      )}
-                    >
-                      <Icon size={16} />
-                    </div>
-                    <span className="text-sm">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-white">
-                <MoonStar size={16} className="text-white/70" />
-                Ambiance
-              </div>
-              <div className="mt-2 text-sm leading-6 text-white/45">
-                Fond obscur, lueurs discrètes, cartes vitrées, logique de contrôle central et sections spécialisées.
+              <div style={{ marginTop: 14, maxWidth: 940, fontSize: mobile ? 14 : 16, lineHeight: 1.65, color: "rgba(215,223,255,0.66)" }}>
+                On reste sur l’idée centrale de l’image : ambiance sombre, lueurs discrètes, panneau principal immersif, commandes centrales, colonne latérale et accès direct aux vrais modules du potager.
               </div>
             </div>
-          </aside>
+            {!mobile ? (
+              <div style={thinPanelStyle({ padding: 14, minWidth: 250 })}>
+                <div style={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1.2, color: "#eef2ff", marginBottom: 8 }}>Ambiance visuelle</div>
+                <div style={{ fontSize: 13.5, lineHeight: 1.6, color: "rgba(214,222,255,0.62)" }}>
+                  Nuit bleutée, verre sombre, dorures légères, centre de commande et logique immersive avant tout.
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
 
-          <main className="space-y-6">
+        {!mobile ? (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 18 }}>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center", marginBottom: 4 }}>
+              {nav.map(({ key, label, icon: Icon }) => (
+                <ActionTile key={key} icon={Icon} label={label} active={view === key} onClick={() => setView(key)} />
+              ))}
+            </div>
             <AnimatePresence mode="wait">
-              <motion.div
-                key={view}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.25 }}
-              >
-                {view === "dashboard" && (
-                  <Dashboard
-                    seedlings={seedlings}
-                    beds={beds}
-                    alerts={alerts}
-                    notes={notes}
-                    setView={setView}
-                    setNotes={setNotes}
-                  />
-                )}
-                {view === "plan" && <PlanView />}
-                {view === "beds" && <BedsView beds={beds} setBeds={setBeds} />}
-                {view === "seedlings" && <SeedlingsView seedlings={seedlings} setSeedlings={setSeedlings} />}
-                {view === "alerts" && <AlertsView alerts={alerts} setAlerts={setAlerts} />}
-                {view === "protection" && <ProtectionView />}
-                {view === "timeline" && <CalendarView seedlings={seedlings} />}
+              <motion.div key={view} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22 }}>
+                {renderView()}
               </motion.div>
             </AnimatePresence>
-          </main>
-        </div>
+          </div>
+        ) : (
+          <>
+            <AnimatePresence mode="wait">
+              <motion.div key={view} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22 }}>
+                {renderView()}
+              </motion.div>
+            </AnimatePresence>
+            <div
+              style={{
+                position: "fixed",
+                left: 12,
+                right: 12,
+                bottom: 10,
+                display: "grid",
+                gridTemplateColumns: "repeat(5, 1fr)",
+                gap: 8,
+                padding: 10,
+                zIndex: 30,
+                ...panelStyle({ borderRadius: 22, background: "linear-gradient(180deg, rgba(18,24,52,0.92), rgba(8,11,22,0.96))" }),
+              }}
+            >
+              {nav.slice(0, 5).map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setView(key)}
+                  style={{
+                    height: 58,
+                    borderRadius: 16,
+                    border: view === key ? "1px solid rgba(255,215,140,0.24)" : "1px solid rgba(180,210,255,0.10)",
+                    background: view === key ? "linear-gradient(180deg, rgba(90,105,180,0.56), rgba(28,36,82,0.84))" : "linear-gradient(180deg, rgba(22,28,56,0.72), rgba(8,11,20,0.84))",
+                    color: "#eef2ff",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    gap: 5,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Icon size={17} />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
