@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 const REF_BG = "/background-home.jpg";
-const STORAGE_KEY = "potager-v42-cases";
+const STORAGE_KEY = "potager-v43-cases";
 
 const initialCases = [
   {
@@ -265,18 +265,6 @@ function AmbientGlow() {
         animate={{ opacity: [0.14, 0.32, 0.14] }}
         transition={{ duration: 7.8, repeat: Infinity, ease: "easeInOut" }}
       />
-      <motion.div
-        style={{
-          position: "absolute",
-          inset: "0",
-          background:
-            "radial-gradient(circle at 85% 42%, rgba(255,174,94,0.10), transparent 18%), radial-gradient(circle at 18% 54%, rgba(98,129,255,0.08), transparent 18%)",
-          filter: "blur(18px)",
-          pointerEvents: "none",
-        }}
-        animate={{ opacity: [0.2, 0.36, 0.2] }}
-        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
-      />
     </>
   );
 }
@@ -318,34 +306,10 @@ function HouseLights() {
         overflow: "hidden",
       }}
     >
-      <HouseWindowGlow
-        left="80.3%"
-        top="38.6%"
-        width="1.55%"
-        height="2.35%"
-        delay={0.2}
-      />
-      <HouseWindowGlow
-        left="82.55%"
-        top="38.55%"
-        width="1.55%"
-        height="2.35%"
-        delay={1.1}
-      />
-      <HouseWindowGlow
-        left="79.9%"
-        top="42.5%"
-        width="2.45%"
-        height="3.2%"
-        delay={0.6}
-      />
-      <HouseWindowGlow
-        left="83.15%"
-        top="42.45%"
-        width="2.45%"
-        height="3.2%"
-        delay={1.4}
-      />
+      <HouseWindowGlow left="80.3%" top="38.6%" width="1.55%" height="2.35%" delay={0.2} />
+      <HouseWindowGlow left="82.55%" top="38.55%" width="1.55%" height="2.35%" delay={1.1} />
+      <HouseWindowGlow left="79.9%" top="42.5%" width="2.45%" height="3.2%" delay={0.6} />
+      <HouseWindowGlow left="83.15%" top="42.45%" width="2.45%" height="3.2%" delay={1.4} />
     </div>
   );
 }
@@ -380,7 +344,7 @@ function LeafBadge({ color }) {
   );
 }
 
-function HomeOverlay({ onOpenPanel, onOpenCreate }) {
+function HomeOverlay({ onOpenPanel, onOpenCreate, compact }) {
   const ref = useRef(null);
 
   function handleContextMenu(e) {
@@ -393,10 +357,15 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
     });
   }
 
+  const rightColWidth = compact ? 300 : 246;
+  const planHeight = compact ? 300 : 360;
+  const buttonHeight = compact ? 68 : 76;
+  const buttonWidth = compact ? 84 : 90;
+
   return (
     <div
       style={shell({
-        padding: 18,
+        padding: compact ? 14 : 18,
         background:
           "linear-gradient(180deg, rgba(8,14,34,0.24), rgba(5,9,22,0.42))",
         boxShadow:
@@ -408,7 +377,7 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 16,
+          marginBottom: compact ? 12 : 16,
         }}
       >
         <div style={{ width: 36 }} />
@@ -416,33 +385,34 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
           style={{
             flex: 1,
             textAlign: "center",
-            ...titleCaps(20),
-            letterSpacing: 4.2,
+            ...titleCaps(compact ? 16 : 20),
+            letterSpacing: compact ? 3.4 : 4.2,
           }}
         >
           MON POTAGER
         </div>
         <div
           style={{
-            width: 36,
-            height: 36,
+            width: compact ? 34 : 36,
+            height: compact ? 34 : 36,
             borderRadius: 10,
             display: "grid",
             placeItems: "center",
             background:
               "linear-gradient(180deg, rgba(25,32,66,0.84), rgba(9,12,24,0.94))",
             border: "1px solid rgba(182,204,255,0.12)",
+            flexShrink: 0,
           }}
         >
-          <Mail size={18} />
+          <Mail size={compact ? 17 : 18} />
         </div>
       </div>
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) 246px",
-          gap: 16,
+          gridTemplateColumns: `${compact ? "minmax(0, 1fr) 300px" : `minmax(0, 1fr) ${rightColWidth}px`}`,
+          gap: compact ? 12 : 16,
           alignItems: "start",
         }}
       >
@@ -451,13 +421,14 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
           onContextMenu={handleContextMenu}
           style={{
             position: "relative",
-            height: 360,
+            height: planHeight,
             borderRadius: 18,
             overflow: "hidden",
             border: "1px solid rgba(182,204,255,0.11)",
             background:
               "linear-gradient(180deg, rgba(14,20,44,0.10), rgba(7,10,20,0.18))",
             boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.02)",
+            minWidth: 0,
           }}
         >
           <div
@@ -465,8 +436,8 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
               position: "absolute",
               left: 18,
               right: 18,
-              bottom: 30,
-              height: 185,
+              bottom: compact ? 24 : 30,
+              height: compact ? 145 : 185,
               borderRadius: 14,
               border: "1px solid rgba(181,202,255,0.20)",
               background:
@@ -476,10 +447,10 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
           <div
             style={{
               position: "absolute",
-              left: "11%",
-              top: "12%",
-              width: "58%",
-              height: "52%",
+              left: compact ? "12%" : "11%",
+              top: compact ? "14%" : "12%",
+              width: compact ? "56%" : "58%",
+              height: compact ? "46%" : "52%",
               borderRadius: 14,
               border: "1px solid rgba(181,202,255,0.18)",
               background: "rgba(10,16,30,0.10)",
@@ -489,31 +460,22 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
           <Hotspot
             title="Plan"
             onClick={() => onOpenPanel("plan")}
-            style={{ left: "12%", top: "13%", width: "56%", height: "50%" }}
-          />
-          <Hotspot
-            title="Suggestion"
-            onClick={() => onOpenPanel("suggestion")}
-            style={{ left: "31%", top: "69%", width: 90, height: 76 }}
-          />
-          <Hotspot
-            title="Pots"
-            onClick={() => onOpenPanel("pots")}
-            style={{ left: "46.2%", top: "69%", width: 90, height: 76 }}
-          />
-          <Hotspot
-            title="Statut"
-            onClick={() => onOpenPanel("status")}
-            style={{ left: "61.4%", top: "69%", width: 90, height: 76 }}
+            style={{
+              left: compact ? "13%" : "12%",
+              top: compact ? "15%" : "13%",
+              width: compact ? "54%" : "56%",
+              height: compact ? "44%" : "50%",
+            }}
           />
         </div>
 
         <div
           style={shell({
-            padding: 14,
-            width: 246,
+            padding: compact ? 12 : 14,
+            width: "100%",
             background:
               "linear-gradient(180deg, rgba(10,16,38,0.24), rgba(6,10,24,0.40))",
+            minWidth: 0,
           })}
         >
           <div
@@ -531,9 +493,10 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
                 borderRadius: "50%",
                 background: "rgba(255,255,255,0.90)",
                 boxShadow: "0 0 10px rgba(255,255,255,0.26)",
+                flexShrink: 0,
               }}
             />
-            <span style={titleCaps(13)}>Zone actuelle</span>
+            <span style={titleCaps(compact ? 12 : 13)}>Zone actuelle</span>
           </div>
 
           <div style={{ display: "grid", gap: 8 }}>
@@ -563,8 +526,8 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
               />
             </div>
 
-            <div style={soft({ padding: 12 })}>
-              <div style={{ color: "#f1f4ff", fontSize: 16, fontWeight: 800 }}>
+            <div style={soft({ padding: compact ? 10 : 12 })}>
+              <div style={{ color: "#f1f4ff", fontSize: compact ? 14 : 16, fontWeight: 800 }}>
                 Mi-ombre
               </div>
               <div
@@ -574,11 +537,10 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
                   justifyContent: "space-between",
                   marginTop: 12,
                   gap: 10,
+                  flexWrap: "wrap",
                 }}
               >
-                <div
-                  style={{ color: "#f1f4ff", fontSize: 15, fontWeight: 800 }}
-                >
+                <div style={{ color: "#f1f4ff", fontSize: compact ? 14 : 15, fontWeight: 800 }}>
                   Laitue
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
@@ -599,13 +561,12 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
                 cursor: "pointer",
               }}
             >
-              <span
-                style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}
-              >
+              <span style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}>
                 <Waves size={16} /> Arroser
               </span>
               <span>›</span>
             </button>
+
             <button
               onClick={() => onOpenPanel("zone")}
               style={{
@@ -616,9 +577,7 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
                 cursor: "pointer",
               }}
             >
-              <span
-                style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}
-              >
+              <span style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}>
                 <PencilLine size={16} /> Modifier
               </span>
               <span>›</span>
@@ -627,7 +586,15 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
         </div>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "center", gap: 24, marginTop: 18 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          gap: compact ? 18 : 24,
+          marginTop: compact ? 14 : 18,
+          flexWrap: "wrap",
+        }}
+      >
         {[
           { key: "suggestion", icon: Wand2, label: "" },
           { key: "pots", icon: Sprout, label: "IA" },
@@ -638,8 +605,8 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
             whileHover={{ y: -2 }}
             onClick={() => onOpenPanel(key)}
             style={{
-              height: 76,
-              width: 90,
+              height: buttonHeight,
+              width: buttonWidth,
               borderRadius: 18,
               border:
                 i === 1
@@ -654,13 +621,14 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
               flexDirection: "column",
               justifyContent: "center",
               alignItems: "center",
-              gap: 8,
+              gap: 6,
               boxShadow: "0 10px 28px rgba(0,0,0,0.30)",
               cursor: "pointer",
+              flexShrink: 0,
             }}
           >
-            <Icon size={26} />
-            <span style={{ fontSize: 14, fontWeight: 800 }}>{label}</span>
+            <Icon size={compact ? 24 : 26} />
+            <span style={{ fontSize: compact ? 13 : 14, fontWeight: 800 }}>{label}</span>
           </motion.button>
         ))}
       </div>
@@ -669,31 +637,31 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: 14,
-          marginTop: 18,
+          gap: compact ? 10 : 14,
+          marginTop: compact ? 14 : 18,
         }}
       >
         <button
           onClick={() => onOpenPanel("suggestion")}
-          style={{ ...soft({ padding: 18, textAlign: "left", cursor: "pointer" }) }}
+          style={{ ...soft({ padding: compact ? 14 : 18, textAlign: "left", cursor: "pointer" }), minWidth: 0 }}
         >
           <div
             style={{
-              ...titleCaps(14),
+              ...titleCaps(compact ? 12 : 14),
               color: "#c8ffd6",
               display: "flex",
               alignItems: "center",
               gap: 8,
             }}
           >
-            <Flower2 size={18} /> IA Suggestion
+            <Flower2 size={compact ? 16 : 18} /> IA Suggestion
           </div>
           <div
             style={{
-              marginTop: 14,
+              marginTop: 12,
               color: "#eef2ff",
-              fontSize: 15,
-              lineHeight: 1.62,
+              fontSize: compact ? 13 : 15,
+              lineHeight: 1.5,
             }}
           >
             Déplacer 3 pots vers la zone Est.
@@ -702,25 +670,25 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
 
         <button
           onClick={() => onOpenPanel("today")}
-          style={{ ...soft({ padding: 18, textAlign: "left", cursor: "pointer" }) }}
+          style={{ ...soft({ padding: compact ? 14 : 18, textAlign: "left", cursor: "pointer" }), minWidth: 0 }}
         >
           <div
             style={{
-              ...titleCaps(14),
+              ...titleCaps(compact ? 12 : 14),
               color: "#d9c6ff",
               display: "flex",
               alignItems: "center",
               gap: 8,
             }}
           >
-            <Sparkles size={18} /> Aujourd’hui
+            <Sparkles size={compact ? 16 : 18} /> Aujourd’hui
           </div>
           <div
             style={{
-              marginTop: 14,
+              marginTop: 12,
               color: "#eef2ff",
-              fontSize: 15,
-              lineHeight: 1.62,
+              fontSize: compact ? 13 : 15,
+              lineHeight: 1.5,
             }}
           >
             Tailler les fraises.
@@ -729,15 +697,15 @@ function HomeOverlay({ onOpenPanel, onOpenCreate }) {
 
         <button
           onClick={() => onOpenPanel("status")}
-          style={{ ...soft({ padding: 18, textAlign: "left", cursor: "pointer" }) }}
+          style={{ ...soft({ padding: compact ? 14 : 18, textAlign: "left", cursor: "pointer" }), minWidth: 0 }}
         >
-          <div style={{ ...titleCaps(14) }}>Statut</div>
+          <div style={{ ...titleCaps(compact ? 12 : 14) }}>Statut</div>
           <div
             style={{
-              marginTop: 14,
+              marginTop: 12,
               color: "#eef2ff",
-              fontSize: 15,
-              lineHeight: 1.62,
+              fontSize: compact ? 13 : 15,
+              lineHeight: 1.5,
             }}
           >
             Enregistré • Restaurer
@@ -758,9 +726,6 @@ function FloatingWindow({
   onResize,
   children,
 }) {
-  const dragRef = useRef(null);
-  const resizeRef = useRef(null);
-
   function startDrag(e) {
     if (e.target.closest("button")) return;
     e.preventDefault();
@@ -834,7 +799,6 @@ function FloatingWindow({
       }}
     >
       <div
-        ref={dragRef}
         onMouseDown={startDrag}
         style={{
           height: 54,
@@ -875,7 +839,6 @@ function FloatingWindow({
             {children}
           </div>
           <div
-            ref={resizeRef}
             onMouseDown={startResize}
             style={{
               position: "absolute",
@@ -1095,7 +1058,7 @@ function renderWindowContent(mode, cases) {
         <div
           style={{
             flex: 1,
-            minHeight: 320,
+            minHeight: 240,
             borderRadius: 20,
             border: "1px solid rgba(182,204,255,0.12)",
             background:
@@ -1127,104 +1090,6 @@ function renderWindowContent(mode, cases) {
               background: "rgba(10,16,30,0.08)",
             }}
           />
-          <div
-            style={{
-              position: "absolute",
-              right: "7%",
-              top: "14%",
-              width: "11%",
-              height: "14%",
-              borderRadius: 14,
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              left: "14%",
-              top: "20%",
-              width: "14%",
-              height: "16%",
-              borderRadius: 12,
-              background: "rgba(120,190,120,0.18)",
-              border: "1px solid rgba(170,225,170,0.18)",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              left: "31%",
-              top: "20%",
-              width: "12%",
-              height: "16%",
-              borderRadius: 12,
-              background: "rgba(160,130,220,0.16)",
-              border: "1px solid rgba(200,185,255,0.16)",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              left: "46%",
-              top: "20%",
-              width: "14%",
-              height: "16%",
-              borderRadius: 12,
-              background: "rgba(120,190,120,0.18)",
-              border: "1px solid rgba(170,225,170,0.18)",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              left: "14%",
-              top: "40%",
-              width: "14%",
-              height: "15%",
-              borderRadius: 12,
-              background: "rgba(120,190,120,0.18)",
-              border: "1px solid rgba(170,225,170,0.18)",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              left: "31%",
-              top: "40%",
-              width: "12%",
-              height: "15%",
-              borderRadius: 12,
-              background: "rgba(255,176,112,0.14)",
-              border: "1px solid rgba(255,210,156,0.14)",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              left: "46%",
-              top: "40%",
-              width: "14%",
-              height: "15%",
-              borderRadius: 12,
-              background: "rgba(160,130,220,0.16)",
-              border: "1px solid rgba(200,185,255,0.16)",
-            }}
-          />
-          <div style={{ position: "absolute", left: 26, bottom: 28, display: "flex", gap: 10 }}>
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  background: "rgba(255,215,140,0.72)",
-                  boxShadow: "0 0 12px rgba(255,215,140,0.18)",
-                }}
-              />
-            ))}
-          </div>
         </div>
       </div>
     );
@@ -1236,16 +1101,9 @@ function renderWindowContent(mode, cases) {
         <div style={soft({ padding: 18 })}>
           <div style={{ ...titleCaps(15), marginBottom: 12 }}>Ajouter des pots</div>
           <div style={{ color: "#eef2ff", fontSize: 14, lineHeight: 1.86 }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
               <span>Nombre de pots:</span>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
                 {[1, 3, 5].map((n) => (
                   <span
                     key={n}
@@ -1265,17 +1123,9 @@ function renderWindowContent(mode, cases) {
               </div>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 10,
-                marginTop: 8,
-              }}
-            >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", marginTop: 10 }}>
               <span>Diamètre du pot</span>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
                 {["20 cm", "30 cm", "40 cm"].map((d) => (
                   <span
                     key={d}
@@ -1291,7 +1141,7 @@ function renderWindowContent(mode, cases) {
               </div>
             </div>
 
-            <div style={{ marginTop: 10, textAlign: "center" }}>
+            <div style={{ marginTop: 12, textAlign: "center" }}>
               Suggestion : Planter du Basilic
             </div>
           </div>
@@ -1370,10 +1220,10 @@ function createWindow(mode, existingCount) {
     id: crypto.randomUUID(),
     mode,
     title: titleMap[mode] || "Fenêtre",
-    x: isHome ? 120 : 220 + existingCount * 24,
-    y: isHome ? 70 : 120 + existingCount * 20,
-    width: isHome ? 1120 : isPots ? 430 : 460,
-    height: isHome ? 760 : isPots ? 390 : 360,
+    x: isHome ? 34 : 120 + existingCount * 18,
+    y: isHome ? 22 : 90 + existingCount * 18,
+    width: isHome ? 1380 : isPots ? 420 : 430,
+    height: isHome ? 780 : isPots ? 320 : 320,
     minimized: false,
     closed: false,
   };
@@ -1392,7 +1242,7 @@ export default function App() {
   const [activeId, setActiveId] = useState(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setShowUi(true), 1800);
+    const timer = window.setTimeout(() => setShowUi(true), 900);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -1486,6 +1336,8 @@ export default function App() {
     });
   }
 
+  const homeCompact = homeWindow.width < 1280 || homeWindow.height < 720;
+
   return (
     <div
       style={{
@@ -1544,7 +1396,11 @@ export default function App() {
             onMove={moveHomeWindow}
             onResize={resizeHomeWindow}
           >
-            <HomeOverlay onOpenPanel={openWindow} onOpenCreate={setCreateAt} />
+            <HomeOverlay
+              onOpenPanel={openWindow}
+              onOpenCreate={setCreateAt}
+              compact={homeCompact}
+            />
           </FloatingWindow>
         ) : null}
       </AnimatePresence>
