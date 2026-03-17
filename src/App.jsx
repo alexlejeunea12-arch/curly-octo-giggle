@@ -1,860 +1,787 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import React, { useMemo, useState } from "react";
 import {
-  ChevronDown,
-  Mail,
-  PencilLine,
-  Save,
-  Search,
-  Sparkles,
+  LayoutDashboard,
+  Map,
   Sprout,
-  Wand2,
-  Waves,
-  Flower2,
-  PlusCircle,
-  X,
-  Minus,
+  Bell,
+  Settings,
   Maximize2,
+  Minimize2,
+  PanelLeft,
+  Search,
+  CalendarDays,
+  FolderKanban,
+  Activity,
+  ChevronRight,
+  CircleAlert,
+  Sparkles,
+  Grid3X3,
+  Eye,
 } from "lucide-react";
 
-const REF_BG = "/background-home.jpg";
-const STORAGE_KEY = "potager-v42-cases";
+export default function App() {
+  const [activeView, setActiveView] = useState("dashboard");
+  const [planExpanded, setPlanExpanded] = useState(false);
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
 
-const initialCases = [
-  { id: "1", name: "Parcelle A", crop: "Laitue", zone: "Mur gauche", exposure: "Mi-ombre", note: "Zone simple à surveiller." },
-  { id: "2", name: "Parcelle B", crop: "Basilic", zone: "Avant plan", exposure: "Mi-ombre", note: "Compagnon des tomates." },
-  { id: "3", name: "Parcelle C", crop: "Piments", zone: "Zone chaude", exposure: "Chaud / protégé", note: "LED prioritaire en semis." },
-];
+  const menu = useMemo(
+    () => [
+      {
+        id: "dashboard",
+        label: "Tour de contrôle",
+        icon: LayoutDashboard,
+        description: "Vue centrale du potager",
+      },
+      {
+        id: "plan",
+        label: "Plan du jardin",
+        icon: Map,
+        description: "Vue spatiale et zones",
+      },
+      {
+        id: "seedlings",
+        label: "Gestion des semis",
+        icon: Sprout,
+        description: "Variétés, dates, état",
+      },
+      {
+        id: "alerts",
+        label: "Alarmes",
+        icon: Bell,
+        description: "Points de vigilance",
+      },
+      {
+        id: "modules",
+        label: "Modules",
+        icon: Grid3X3,
+        description: "Extensions futures",
+      },
+      {
+        id: "settings",
+        label: "Réglages",
+        icon: Settings,
+        description: "Personnalisation interface",
+      },
+    ],
+    []
+  );
 
-function useLocalStorageState(key, initialValue) {
-  const [value, setValue] = useState(() => {
-    try {
-      const saved = localStorage.getItem(key);
-      return saved ? JSON.parse(saved) : initialValue;
-    } catch {
-      return initialValue;
-    }
-  });
+  const quickAccess = [
+    { title: "Plan du jardin", subtitle: "Ouvrir la carte principale", icon: Map, view: "plan" },
+    { title: "Gestion des semis", subtitle: "Accéder aux variétés et dates", icon: Sprout, view: "seedlings" },
+    { title: "Alarmes", subtitle: "Voir les priorités du tableau", icon: Bell, view: "alerts" },
+    { title: "Modules", subtitle: "Ajouter des fonctions futures", icon: Grid3X3, view: "modules" },
+  ];
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-      // ignore
-    }
-  }, [key, value]);
+  const alerts = [
+    { level: "Élevée", label: "Bloc de suivi prioritaire", detail: "Zone dédiée aux alertes critiques" },
+    { level: "Modérée", label: "Organisation des modules", detail: "Préparer la personnalisation future" },
+    { level: "Faible", label: "Affinage visuel", detail: "Ajustements premium et transparence" },
+  ];
 
-  return [value, setValue];
-}
-
-function shell(extra = {}) {
-  return {
-    background: "linear-gradient(180deg, rgba(8,14,34,0.34), rgba(5,9,22,0.52))",
-    border: "1px solid rgba(182,204,255,0.11)",
-    borderRadius: 22,
-    boxShadow: "0 28px 90px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.04)",
-    backdropFilter: "blur(20px)",
-    WebkitBackdropFilter: "blur(20px)",
-    ...extra,
-  };
-}
-
-function soft(extra = {}) {
-  return shell({
-    background: "linear-gradient(180deg, rgba(12,18,40,0.78), rgba(7,10,22,0.90))",
-    borderRadius: 16,
-    ...extra,
-  });
-}
-
-function titleCaps(size = 16) {
-  return {
-    textTransform: "uppercase",
-    letterSpacing: 3.2,
-    fontWeight: 800,
-    color: "rgba(242,245,255,0.96)",
-    fontSize: size,
-  };
-}
-
-function fieldStyle() {
-  return {
-    width: "100%",
-    height: 44,
-    borderRadius: 12,
-    border: "1px solid rgba(182,204,255,0.12)",
-    background: "linear-gradient(180deg, rgba(23,30,64,0.74), rgba(9,12,25,0.92))",
-    color: "#eef2ff",
-    outline: "none",
-    padding: "0 14px",
-    fontSize: 14,
-  };
-}
-
-function Fireflies() {
-  const dots = useMemo(() => {
-    const edgeBands = [
-      () => ({ left: Math.random() * 18, top: Math.random() * 100 }),
-      () => ({ left: 82 + Math.random() * 18, top: Math.random() * 100 }),
-      () => ({ left: Math.random() * 100, top: Math.random() * 14 }),
-      () => ({ left: Math.random() * 100, top: 86 + Math.random() * 14 }),
-    ];
-
-    return Array.from({ length: 42 }).map((_, i) => {
-      const pick = edgeBands[i % edgeBands.length]();
-      return {
-        id: i,
-        left: pick.left,
-        top: pick.top,
-        size: 1.4 + Math.random() * 3.6,
-        duration: 4 + Math.random() * 8,
-        delay: Math.random() * 5,
-        driftX: -8 + Math.random() * 16,
-        driftY: -10 + Math.random() * 14,
-      };
-    });
-  }, []);
+  const seedlings = [
+    { name: "Module variété", status: "Prêt", date: "À définir", note: "Bloc prévu pour les espèces" },
+    { name: "Module calendrier", status: "Prêt", date: "À définir", note: "Dates et échéances futures" },
+    { name: "Module état", status: "En attente", date: "À définir", note: "Suivi détaillé à brancher" },
+    { name: "Module observations", status: "En attente", date: "À définir", note: "Commentaires et historique" },
+  ];
 
   return (
-    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
-      {dots.map((d) => (
-        <motion.div
-          key={d.id}
-          style={{
-            position: "absolute",
-            left: `${d.left}%`,
-            top: `${d.top}%`,
-            width: d.size,
-            height: d.size,
-            borderRadius: "50%",
-            background: "rgba(255,229,170,0.96)",
-            boxShadow: "0 0 14px rgba(255,216,128,0.72), 0 0 30px rgba(255,216,128,0.18)",
-            filter: "blur(0.15px)",
-          }}
-          animate={{
-            opacity: [0.06, 0.78, 0.16, 0.06],
-            y: [0, d.driftY, d.driftY * -0.35, 0],
-            x: [0, d.driftX, d.driftX * -0.45, 0],
-            scale: [1, 1.24, 0.92, 1],
-          }}
-          transition={{ duration: d.duration, repeat: Infinity, ease: "easeInOut", delay: d.delay }}
-        />
-      ))}
+    <div className="relative min-h-screen overflow-hidden bg-[#07111a] text-white">
+      <AnimatedBackground />
+
+      <div className="relative z-10 flex min-h-screen">
+        <aside
+          className={`transition-all duration-300 border-r border-white/10 bg-white/5 backdrop-blur-2xl ${
+            leftCollapsed ? "w-[88px]" : "w-[300px]"
+          }`}
+        >
+          <div className="flex h-full flex-col">
+            <div className="border-b border-white/10 p-4">
+              <div className="flex items-center justify-between gap-3">
+                {!leftCollapsed && (
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-400/15 ring-1 ring-emerald-300/20">
+                        <Sparkles className="h-5 w-5 text-emerald-200" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.28em] text-white/45">
+                          Potager Control
+                        </p>
+                        <h1 className="text-lg font-semibold text-white/95">
+                          Tableau de bord
+                        </h1>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setLeftCollapsed(!leftCollapsed)}
+                  className="rounded-xl border border-white/10 bg-white/5 p-2 text-white/70 transition hover:bg-white/10 hover:text-white"
+                >
+                  <PanelLeft className="h-4 w-4" />
+                </button>
+              </div>
+
+              {!leftCollapsed && (
+                <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+                  <div className="flex items-center gap-2 text-white/60">
+                    <Search className="h-4 w-4" />
+                    <span className="text-sm">Recherche interface</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <nav className="flex-1 p-3">
+              <div className="space-y-2">
+                {menu.map((item) => {
+                  const Icon = item.icon;
+                  const active = activeView === item.id;
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveView(item.id)}
+                      className={`group w-full rounded-2xl border p-3 text-left transition-all duration-200 ${
+                        active
+                          ? "border-emerald-300/30 bg-emerald-300/12 shadow-[0_0_0_1px_rgba(110,231,183,0.08)]"
+                          : "border-white/8 bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.06]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex h-11 w-11 items-center justify-center rounded-2xl ${
+                            active
+                              ? "bg-emerald-300/15 text-emerald-100"
+                              : "bg-white/6 text-white/75"
+                          }`}
+                        >
+                          <Icon className="h-5 w-5" />
+                        </div>
+
+                        {!leftCollapsed && (
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="truncate font-medium text-white/95">
+                                {item.label}
+                              </p>
+                              <ChevronRight
+                                className={`h-4 w-4 transition ${
+                                  active
+                                    ? "translate-x-0 text-emerald-100"
+                                    : "text-white/30 group-hover:translate-x-0.5"
+                                }`}
+                              />
+                            </div>
+                            <p className="truncate text-xs text-white/45">
+                              {item.description}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+
+            {!leftCollapsed && (
+              <div className="border-t border-white/10 p-4">
+                <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/8 to-white/[0.03] p-4">
+                  <p className="text-[11px] uppercase tracking-[0.28em] text-white/40">
+                    Vision
+                  </p>
+                  <h3 className="mt-2 text-base font-semibold text-white/95">
+                    Interface centrale premium
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-white/55">
+                    Base propre, modulaire, lisible et évolutive pour construire
+                    une vraie tour de contrôle du potager.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </aside>
+
+        <main className="flex-1">
+          <TopBar activeView={activeView} />
+
+          <div className="p-5 md:p-6">
+            {planExpanded ? (
+              <ExpandedPlanView
+                onClose={() => setPlanExpanded(false)}
+                onGoDashboard={() => {
+                  setPlanExpanded(false);
+                  setActiveView("dashboard");
+                }}
+              />
+            ) : (
+              <div className="space-y-6">
+                {activeView === "dashboard" && (
+                  <>
+                    <HeroPanel onOpenPlan={() => setActiveView("plan")} />
+
+                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+                      <GlassPanel className="xl:col-span-8">
+                        <SectionTitle
+                          eyebrow="Accueil central"
+                          title="Accès rapide"
+                          subtitle="Structure claire pour piloter les grandes fonctions du site."
+                        />
+                        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+                          {quickAccess.map((item) => {
+                            const Icon = item.icon;
+                            return (
+                              <button
+                                key={item.title}
+                                onClick={() => setActiveView(item.view)}
+                                className="group rounded-3xl border border-white/10 bg-white/[0.04] p-4 text-left transition hover:border-emerald-300/20 hover:bg-white/[0.06]"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-300/10 text-emerald-100">
+                                    <Icon className="h-5 w-5" />
+                                  </div>
+                                  <ChevronRight className="mt-1 h-4 w-4 text-white/30 transition group-hover:translate-x-1 group-hover:text-white/70" />
+                                </div>
+                                <h3 className="mt-4 text-base font-semibold text-white/95">
+                                  {item.title}
+                                </h3>
+                                <p className="mt-1 text-sm text-white/55">
+                                  {item.subtitle}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </GlassPanel>
+
+                      <GlassPanel className="xl:col-span-4">
+                        <SectionTitle
+                          eyebrow="Synthèse"
+                          title="Points de vigilance"
+                          subtitle="Zone visuelle dédiée aux priorités et à l’organisation du tableau."
+                        />
+                        <div className="mt-5 space-y-3">
+                          {alerts.map((item, index) => (
+                            <div
+                              key={index}
+                              className="rounded-2xl border border-white/10 bg-black/20 p-4"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="mt-0.5 rounded-xl bg-amber-300/10 p-2 text-amber-200">
+                                  <CircleAlert className="h-4 w-4" />
+                                </div>
+                                <div>
+                                  <p className="text-xs uppercase tracking-[0.22em] text-white/40">
+                                    {item.level}
+                                  </p>
+                                  <p className="mt-1 font-medium text-white/90">
+                                    {item.label}
+                                  </p>
+                                  <p className="mt-1 text-sm text-white/55">
+                                    {item.detail}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </GlassPanel>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+                      <GlassPanel className="xl:col-span-7">
+                        <SectionTitle
+                          eyebrow="Plan"
+                          title="Fenêtre dédiée au jardin"
+                          subtitle="Le plan doit pouvoir vivre séparément du reste, comme un vrai module indépendant."
+                        />
+                        <div className="mt-5">
+                          <PlanPreview onExpand={() => setPlanExpanded(true)} />
+                        </div>
+                      </GlassPanel>
+
+                      <GlassPanel className="xl:col-span-5">
+                        <SectionTitle
+                          eyebrow="Architecture"
+                          title="Modules à brancher"
+                          subtitle="Base prévue pour accueillir les futurs systèmes du site."
+                        />
+                        <div className="mt-5 grid grid-cols-1 gap-3">
+                          {[
+                            "Calendrier des étapes",
+                            "Fiches variétés",
+                            "Historique des observations",
+                            "Organisation des fenêtres",
+                            "Réagencement de l’accueil",
+                            "Personnalisation de l’interface",
+                          ].map((item) => (
+                            <div
+                              key={item}
+                              className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3"
+                            >
+                              <span className="text-sm text-white/75">{item}</span>
+                              <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.2em] text-emerald-100">
+                                Prévu
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </GlassPanel>
+                    </div>
+                  </>
+                )}
+
+                {activeView === "plan" && (
+                  <GlassPanel>
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <SectionTitle
+                          eyebrow="Vue dédiée"
+                          title="Plan du jardin"
+                          subtitle="Module indépendant, plus lisible et mieux isolé du reste de l’interface."
+                        />
+                      </div>
+
+                      <button
+                        onClick={() => setPlanExpanded(true)}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-300/12 px-4 py-3 text-sm font-medium text-emerald-100 transition hover:bg-emerald-300/18"
+                      >
+                        <Maximize2 className="h-4 w-4" />
+                        Isoler le plan
+                      </button>
+                    </div>
+
+                    <div className="mt-6">
+                      <PlanPreview onExpand={() => setPlanExpanded(true)} />
+                    </div>
+                  </GlassPanel>
+                )}
+
+                {activeView === "seedlings" && (
+                  <GlassPanel>
+                    <SectionTitle
+                      eyebrow="Gestion"
+                      title="Gestion des semis"
+                      subtitle="Base d’interface pour accueillir variétés, dates, états, suivis et observations."
+                    />
+
+                    <div className="mt-6 overflow-hidden rounded-3xl border border-white/10">
+                      <div className="grid grid-cols-4 border-b border-white/10 bg-white/[0.04] text-sm text-white/55">
+                        <div className="px-4 py-3">Module</div>
+                        <div className="px-4 py-3">État</div>
+                        <div className="px-4 py-3">Date</div>
+                        <div className="px-4 py-3">Note</div>
+                      </div>
+
+                      {seedlings.map((row) => (
+                        <div
+                          key={row.name}
+                          className="grid grid-cols-1 border-b border-white/10 bg-black/10 last:border-b-0 md:grid-cols-4"
+                        >
+                          <div className="px-4 py-4 text-white/92">{row.name}</div>
+                          <div className="px-4 py-4">
+                            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs text-white/70">
+                              {row.status}
+                            </span>
+                          </div>
+                          <div className="px-4 py-4 text-white/60">{row.date}</div>
+                          <div className="px-4 py-4 text-white/55">{row.note}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </GlassPanel>
+                )}
+
+                {activeView === "alerts" && (
+                  <GlassPanel>
+                    <SectionTitle
+                      eyebrow="Priorités"
+                      title="Alarmes et vigilance"
+                      subtitle="Section prévue pour centraliser les alertes importantes du tableau de bord."
+                    />
+
+                    <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+                      {[
+                        {
+                          title: "Alertes critiques",
+                          desc: "Bloc réservé aux éléments à traiter en priorité.",
+                          icon: Bell,
+                        },
+                        {
+                          title: "Suivi des anomalies",
+                          desc: "Espace pour les écarts, oublis, retards et incohérences.",
+                          icon: Activity,
+                        },
+                        {
+                          title: "Journal d’actions",
+                          desc: "Historique futur des interventions et validations du tableau.",
+                          icon: FolderKanban,
+                        },
+                      ].map((card) => {
+                        const Icon = card.icon;
+                        return (
+                          <div
+                            key={card.title}
+                            className="rounded-3xl border border-white/10 bg-white/[0.04] p-5"
+                          >
+                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-300/10 text-rose-100">
+                              <Icon className="h-5 w-5" />
+                            </div>
+                            <h3 className="mt-4 text-base font-semibold text-white/95">
+                              {card.title}
+                            </h3>
+                            <p className="mt-2 text-sm leading-relaxed text-white/55">
+                              {card.desc}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </GlassPanel>
+                )}
+
+                {activeView === "modules" && (
+                  <GlassPanel>
+                    <SectionTitle
+                      eyebrow="Extensions"
+                      title="Modules et évolutions"
+                      subtitle="Zone pensée pour brancher progressivement les fonctions futures du site."
+                    />
+
+                    <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {[
+                        "Calendrier",
+                        "Fiches variétés",
+                        "Suivis",
+                        "Observations",
+                        "Réorganisation des blocs",
+                        "Fenêtres déplaçables",
+                        "Disposition personnalisée",
+                        "État général du tableau",
+                        "Raccourcis contextuels",
+                      ].map((item) => (
+                        <div
+                          key={item}
+                          className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-white/[0.025] p-5"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="rounded-2xl bg-cyan-300/10 p-3 text-cyan-100">
+                              <Grid3X3 className="h-4 w-4" />
+                            </div>
+                            <p className="font-medium text-white/90">{item}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </GlassPanel>
+                )}
+
+                {activeView === "settings" && (
+                  <GlassPanel>
+                    <SectionTitle
+                      eyebrow="Réglages"
+                      title="Personnalisation future"
+                      subtitle="Préparation de la modularité, du réagencement et des préférences visuelles."
+                    />
+
+                    <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                      {[
+                        {
+                          title: "Disposition",
+                          desc: "Prévoir le déplacement et la réorganisation des blocs.",
+                        },
+                        {
+                          title: "Fenêtres",
+                          desc: "Préparer l’isolation et la gestion indépendante des vues.",
+                        },
+                        {
+                          title: "Transparence",
+                          desc: "Affiner l’effet premium et la profondeur visuelle.",
+                        },
+                        {
+                          title: "Ambiance",
+                          desc: "Ajuster le fond, les animations et le niveau de contraste.",
+                        },
+                      ].map((item) => (
+                        <div
+                          key={item.title}
+                          className="rounded-3xl border border-white/10 bg-white/[0.04] p-5"
+                        >
+                          <h3 className="text-base font-semibold text-white/95">
+                            {item.title}
+                          </h3>
+                          <p className="mt-2 text-sm text-white/55">{item.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </GlassPanel>
+                )}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
 
-function AmbientGlow() {
-  return (
-    <>
-      <motion.div
-        style={{
-          position: "absolute",
-          inset: "6% 8% auto 8%",
-          height: 360,
-          borderRadius: 60,
-          background: "radial-gradient(circle, rgba(108,138,255,0.16), rgba(108,138,255,0.06) 38%, transparent 68%)",
-          filter: "blur(26px)",
-          pointerEvents: "none",
-        }}
-        animate={{ opacity: [0.42, 0.72, 0.42] }}
-        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        style={{
-          position: "absolute",
-          left: "10%",
-          right: "10%",
-          bottom: "6%",
-          height: 210,
-          background: "radial-gradient(ellipse at center, rgba(255,201,106,0.16), rgba(255,201,106,0.05) 40%, transparent 74%)",
-          filter: "blur(20px)",
-          pointerEvents: "none",
-        }}
-        animate={{ opacity: [0.28, 0.56, 0.28] }}
-        transition={{ duration: 6.2, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        style={{
-          position: "absolute",
-          left: "-6%",
-          top: "18%",
-          width: 280,
-          height: 280,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(90,134,255,0.12), transparent 72%)",
-          filter: "blur(34px)",
-          pointerEvents: "none",
-        }}
-        animate={{ opacity: [0.16, 0.34, 0.16] }}
-        transition={{ duration: 8.5, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        style={{
-          position: "absolute",
-          right: "-4%",
-          top: "16%",
-          width: 260,
-          height: 260,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(255,184,92,0.14), transparent 72%)",
-          filter: "blur(30px)",
-          pointerEvents: "none",
-        }}
-        animate={{ opacity: [0.14, 0.32, 0.14] }}
-        transition={{ duration: 7.8, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        style={{
-          position: "absolute",
-          inset: "0",
-          background: "radial-gradient(circle at 85% 42%, rgba(255,174,94,0.10), transparent 18%), radial-gradient(circle at 18% 54%, rgba(98,129,255,0.08), transparent 18%)",
-          filter: "blur(18px)",
-          pointerEvents: "none",
-        }}
-        animate={{ opacity: [0.2, 0.36, 0.2] }}
-        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
-      />
-    </>
-  );
-}
+function TopBar({ activeView }) {
+  const titles = {
+    dashboard: "Tour de contrôle",
+    plan: "Plan du jardin",
+    seedlings: "Gestion des semis",
+    alerts: "Alarmes",
+    modules: "Modules",
+    settings: "Réglages",
+  };
 
-function HouseWindowGlow({ left, top, width, height, delay = 0 }) {
   return (
-    <motion.div
-      style={{
-        position: "absolute",
-        left,
-        top,
-        width,
-        height,
-        borderRadius: 3,
-        background: "linear-gradient(180deg, rgba(255,214,150,0.32), rgba(255,169,92,0.18))",
-        boxShadow: "0 0 10px rgba(255,182,95,0.10)",
-        mixBlendMode: "screen",
-        pointerEvents: "none",
-      }}
-      animate={{ opacity: [0.14, 0.3, 0.18, 0.34, 0.14] }}
-      transition={{ duration: 5.6, repeat: Infinity, ease: "easeInOut", delay }}
-    />
-  );
-}
+    <div className="sticky top-0 z-20 border-b border-white/10 bg-[#08121b]/60 backdrop-blur-2xl">
+      <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between md:px-6">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.28em] text-white/35">
+            Interface centrale
+          </p>
+          <h2 className="mt-1 text-xl font-semibold text-white/95">
+            {titles[activeView]}
+          </h2>
+        </div>
 
-function HouseLights() {
-  return (
-    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
-      <HouseWindowGlow left="80.3%" top="38.6%" width="1.55%" height="2.35%" delay={0.2} />
-      <HouseWindowGlow left="82.55%" top="38.55%" width="1.55%" height="2.35%" delay={1.1} />
-      <HouseWindowGlow left="79.9%" top="42.5%" width="2.45%" height="3.2%" delay={0.6} />
-      <HouseWindowGlow left="83.15%" top="42.45%" width="2.45%" height="3.2%" delay={1.4} />
+        <div className="flex flex-wrap items-center gap-3">
+          <StatusPill icon={Eye} label="Vue premium" />
+          <StatusPill icon={CalendarDays} label="Base évolutive" />
+          <StatusPill icon={Activity} label="Architecture propre" />
+        </div>
+      </div>
     </div>
   );
 }
 
-function Hotspot({ style, onClick, title }) {
-  return <button title={title} onClick={onClick} style={{ position: "absolute", background: "transparent", border: "none", cursor: "pointer", ...style }} />;
+function StatusPill({ icon: Icon, label }) {
+  return (
+    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white/65">
+      <Icon className="h-4 w-4" />
+      <span>{label}</span>
+    </div>
+  );
 }
 
-function LeafBadge({ color }) {
-  return <span style={{ width: 24, height: 16, borderRadius: 10, background: `radial-gradient(circle at 30% 30%, ${color}, rgba(34,68,34,0.96))`, boxShadow: "inset 0 0 8px rgba(255,255,255,0.06)" }} />;
+function HeroPanel({ onOpenPlan }) {
+  return (
+    <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-transparent p-6 md:p-8">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(52,211,153,0.14),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(56,189,248,0.10),transparent_28%)]" />
+
+      <div className="relative z-10 grid grid-cols-1 gap-8 xl:grid-cols-12">
+        <div className="xl:col-span-8">
+          <p className="text-[11px] uppercase tracking-[0.32em] text-emerald-100/55">
+            Tableau de bord premium
+          </p>
+          <h1 className="mt-3 max-w-3xl text-3xl font-semibold leading-tight text-white/95 md:text-5xl">
+            Une vraie tour de contrôle visuelle, claire, modulaire et immersive.
+          </h1>
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/60 md:text-base">
+            Cette base recentre le projet sur une interface nette, élégante et
+            évolutive. L’accueil reste fort visuellement, tandis que les grandes
+            fonctions sont séparées proprement pour construire la suite sans
+            repartir dans tous les sens.
+          </p>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button
+              onClick={onOpenPlan}
+              className="rounded-2xl border border-emerald-300/20 bg-emerald-300/12 px-5 py-3 text-sm font-medium text-emerald-100 transition hover:bg-emerald-300/18"
+            >
+              Ouvrir le plan
+            </button>
+            <button className="rounded-2xl border border-white/10 bg-white/[0.05] px-5 py-3 text-sm font-medium text-white/80 transition hover:bg-white/[0.08]">
+              Continuer la structure
+            </button>
+          </div>
+        </div>
+
+        <div className="xl:col-span-4">
+          <div className="grid grid-cols-1 gap-4">
+            <MiniMetric title="Accueil central" value="Actif" sub="Base propre lancée" />
+            <MiniMetric title="Plan isolable" value="Oui" sub="Fenêtre dédiée prévue" />
+            <MiniMetric title="Style premium" value="Renforcé" sub="Transparence plus fine" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function HomeOverlay({ onOpenPanel, onOpenCreate }) {
-  const ref = useRef(null);
+function MiniMetric({ title, value, sub }) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
+      <p className="text-xs uppercase tracking-[0.22em] text-white/35">{title}</p>
+      <p className="mt-2 text-2xl font-semibold text-white/95">{value}</p>
+      <p className="mt-1 text-sm text-white/50">{sub}</p>
+    </div>
+  );
+}
 
-  function handleContextMenu(e) {
-    e.preventDefault();
-    const rect = ref.current?.getBoundingClientRect();
-    if (!rect) return;
-    onOpenCreate({
-      x: (e.clientX - rect.left) / rect.width,
-      y: (e.clientY - rect.top) / rect.height,
-    });
-  }
+function GlassPanel({ children, className = "" }) {
+  return (
+    <section
+      className={`rounded-[30px] border border-white/10 bg-white/[0.045] p-5 backdrop-blur-2xl md:p-6 ${className}`}
+    >
+      {children}
+    </section>
+  );
+}
+
+function SectionTitle({ eyebrow, title, subtitle }) {
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-[0.28em] text-white/38">
+        {eyebrow}
+      </p>
+      <h2 className="mt-2 text-2xl font-semibold text-white/95">{title}</h2>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-white/55">
+        {subtitle}
+      </p>
+    </div>
+  );
+}
+
+function PlanPreview({ onExpand }) {
+  return (
+    <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[#08131c]/90">
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+        <div>
+          <p className="text-sm font-medium text-white/85">Fenêtre plan</p>
+          <p className="text-xs text-white/40">Module spatial indépendant</p>
+        </div>
+
+        <button
+          onClick={onExpand}
+          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-white/70 transition hover:bg-white/[0.08] hover:text-white"
+        >
+          <Maximize2 className="h-4 w-4" />
+          Isoler
+        </button>
+      </div>
+
+      <div className="grid grid-cols-12 gap-3 p-4">
+        <MapZone className="col-span-12 h-28 md:col-span-8" label="Zone principale" tone="emerald" />
+        <MapZone className="col-span-6 h-24 md:col-span-4" label="Accès" tone="cyan" />
+        <MapZone className="col-span-6 h-24 md:col-span-4" label="Bloc A" tone="sky" />
+        <MapZone className="col-span-6 h-24 md:col-span-4" label="Bloc B" tone="emerald" />
+        <MapZone className="col-span-6 h-24 md:col-span-4" label="Bloc C" tone="violet" />
+      </div>
+    </div>
+  );
+}
+
+function MapZone({ label, className, tone = "emerald" }) {
+  const toneClass =
+    tone === "cyan"
+      ? "from-cyan-400/18 to-cyan-300/8 border-cyan-300/15"
+      : tone === "sky"
+      ? "from-sky-400/18 to-sky-300/8 border-sky-300/15"
+      : tone === "violet"
+      ? "from-violet-400/18 to-violet-300/8 border-violet-300/15"
+      : "from-emerald-400/18 to-emerald-300/8 border-emerald-300/15";
 
   return (
     <div
-      style={shell({
-        padding: 18,
-        background:
-          "linear-gradient(180deg, rgba(8,14,34,0.24), rgba(5,9,22,0.42))",
-        boxShadow:
-          "0 26px 92px rgba(0,0,0,0.18), 0 0 30px rgba(90,120,255,0.03), inset 0 1px 0 rgba(255,255,255,0.05)",
-      })}
+      className={`rounded-[24px] border bg-gradient-to-br ${toneClass} p-4 ${className}`}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <div style={{ width: 36 }} />
-        <div style={{ flex: 1, textAlign: "center", ...titleCaps(20), letterSpacing: 4.2 }}>MON POTAGER</div>
-        <div style={{ width: 36, height: 36, borderRadius: 10, display: "grid", placeItems: "center", background: "linear-gradient(180deg, rgba(25,32,66,0.84), rgba(9,12,24,0.94))", border: "1px solid rgba(182,204,255,0.12)" }}>
-          <Mail size={18} />
-        </div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 246px", gap: 16, alignItems: "start" }}>
-        <div
-          ref={ref}
-          onContextMenu={handleContextMenu}
-          style={{
-            position: "relative",
-            height: 360,
-            borderRadius: 18,
-            overflow: "hidden",
-            border: "1px solid rgba(182,204,255,0.11)",
-            background: "linear-gradient(180deg, rgba(14,20,44,0.10), rgba(7,10,20,0.18))",
-            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.02)",
-          }}
-        >
-          <div style={{ position: "absolute", left: 18, right: 18, bottom: 30, height: 185, borderRadius: 14, border: "1px solid rgba(181,202,255,0.20)", background: "linear-gradient(180deg, rgba(9,13,24,0.16), rgba(9,13,24,0.03))" }} />
-          <div style={{ position: "absolute", left: "11%", top: "12%", width: "58%", height: "52%", borderRadius: 14, border: "1px solid rgba(181,202,255,0.18)", background: "rgba(10,16,30,0.10)" }} />
-
-          <Hotspot title="Plan" onClick={() => onOpenPanel("plan")} style={{ left: "12%", top: "13%", width: "56%", height: "50%" }} />
-          <Hotspot title="Suggestion" onClick={() => onOpenPanel("suggestion")} style={{ left: "31%", top: "69%", width: 90, height: 76 }} />
-          <Hotspot title="Pots" onClick={() => onOpenPanel("pots")} style={{ left: "46.2%", top: "69%", width: 90, height: 76 }} />
-          <Hotspot title="Statut" onClick={() => onOpenPanel("status")} style={{ left: "61.4%", top: "69%", width: 90, height: 76 }} />
-        </div>
-
-        <div style={shell({ padding: 14, width: 246, background: "linear-gradient(180deg, rgba(10,16,38,0.24), rgba(6,10,24,0.40))" })}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <div style={{ width: 14, height: 14, borderRadius: "50%", background: "rgba(255,255,255,0.90)", boxShadow: "0 0 10px rgba(255,255,255,0.26)" }} />
-            <span style={titleCaps(13)}>Zone actuelle</span>
-          </div>
-
-          <div style={{ display: "grid", gap: 8 }}>
-            <div style={{ position: "relative" }}>
-              <input value="Parcelle" readOnly style={{ ...fieldStyle(), paddingLeft: 36 }} />
-              <Search size={16} style={{ position: "absolute", left: 12, top: 14, color: "rgba(234,239,255,0.72)" }} />
-              <ChevronDown size={16} style={{ position: "absolute", right: 12, top: 14, color: "rgba(234,239,255,0.72)" }} />
-            </div>
-
-            <div style={soft({ padding: 12 })}>
-              <div style={{ color: "#f1f4ff", fontSize: 16, fontWeight: 800 }}>Mi-ombre</div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, gap: 10 }}>
-                <div style={{ color: "#f1f4ff", fontSize: 15, fontWeight: 800 }}>Laitue</div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <LeafBadge color="#6fbf63" />
-                  <LeafBadge color="#6fbf63" />
-                  <LeafBadge color="#d94f4f" />
-                </div>
-              </div>
-            </div>
-
-            <button onClick={() => onOpenPanel("zone")} style={{ ...fieldStyle(), display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}><Waves size={16} /> Arroser</span>
-              <span>›</span>
-            </button>
-            <button onClick={() => onOpenPanel("zone")} style={{ ...fieldStyle(), display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}><PencilLine size={16} /> Modifier</span>
-              <span>›</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: "flex", justifyContent: "center", gap: 24, marginTop: 18 }}>
-        {[
-          { key: "suggestion", icon: Wand2, label: "" },
-          { key: "pots", icon: Sprout, label: "IA" },
-          { key: "status", icon: Save, label: "Sauver" },
-        ].map(({ key, icon: Icon, label }, i) => (
-          <motion.button
-            key={key}
-            whileHover={{ y: -2 }}
-            onClick={() => onOpenPanel(key)}
-            style={{
-              height: 76,
-              width: 90,
-              borderRadius: 18,
-              border: i === 1 ? "1px solid rgba(255,214,140,0.28)" : "1px solid rgba(182,204,255,0.11)",
-              background: i === 1 ? "linear-gradient(180deg, rgba(92,101,188,0.84), rgba(28,34,75,0.94))" : "linear-gradient(180deg, rgba(22,28,56,0.84), rgba(8,11,24,0.96))",
-              color: "#eef2ff",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: 8,
-              boxShadow: "0 10px 28px rgba(0,0,0,0.30)",
-              cursor: "pointer",
-            }}
-          >
-            <Icon size={26} />
-            <span style={{ fontSize: 14, fontWeight: 800 }}>{label}</span>
-          </motion.button>
-        ))}
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14, marginTop: 18 }}>
-        <button onClick={() => onOpenPanel("suggestion")} style={{ ...soft({ padding: 18, textAlign: "left", cursor: "pointer" }) }}>
-          <div style={{ ...titleCaps(14), color: "#c8ffd6", display: "flex", alignItems: "center", gap: 8 }}><Flower2 size={18} /> IA Suggestion</div>
-          <div style={{ marginTop: 14, color: "#eef2ff", fontSize: 15, lineHeight: 1.62 }}>Déplacer 3 pots vers la zone Est.</div>
-        </button>
-        <button onClick={() => onOpenPanel("today")} style={{ ...soft({ padding: 18, textAlign: "left", cursor: "pointer" }) }}>
-          <div style={{ ...titleCaps(14), color: "#d9c6ff", display: "flex", alignItems: "center", gap: 8 }}><Sparkles size={18} /> Aujourd’hui</div>
-          <div style={{ marginTop: 14, color: "#eef2ff", fontSize: 15, lineHeight: 1.62 }}>Tailler les fraises.</div>
-        </button>
-        <button onClick={() => onOpenPanel("status")} style={{ ...soft({ padding: 18, textAlign: "left", cursor: "pointer" }) }}>
-          <div style={{ ...titleCaps(14) }}>Statut</div>
-          <div style={{ marginTop: 14, color: "#eef2ff", fontSize: 15, lineHeight: 1.62 }}>Enregistré • Restaurer</div>
-        </button>
+      <div className="flex h-full flex-col justify-between">
+        <span className="text-xs uppercase tracking-[0.24em] text-white/35">
+          Zone
+        </span>
+        <p className="text-sm font-medium text-white/88">{label}</p>
       </div>
     </div>
   );
 }
 
-function FloatingWindow({ win, isActive, onFocus, onClose, onMinimize, onMove, onResize, children }) {
-  const dragRef = useRef(null);
-  const resizeRef = useRef(null);
-
-  function startDrag(e) {
-    if (e.target.closest("button")) return;
-    e.preventDefault();
-    onFocus(win.id);
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const baseX = win.x;
-    const baseY = win.y;
-
-    function move(ev) {
-      onMove(win.id, {
-        x: baseX + (ev.clientX - startX),
-        y: baseY + (ev.clientY - startY),
-      });
-    }
-
-    function up() {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
-    }
-
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
-  }
-
-  function startResize(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    onFocus(win.id);
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const baseW = win.width;
-    const baseH = win.height;
-
-    function move(ev) {
-      onResize(win.id, {
-        width: Math.max(320, baseW + (ev.clientX - startX)),
-        height: Math.max(220, baseH + (ev.clientY - startY)),
-      });
-    }
-
-    function up() {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
-    }
-
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
-  }
-
+function ExpandedPlanView({ onClose, onGoDashboard }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.98, y: 8 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.98, y: 10 }}
-      transition={{ duration: 0.18 }}
-      onMouseDown={() => onFocus(win.id)}
-      style={{
-        position: "fixed",
-        left: win.x,
-        top: win.y,
-        width: win.width,
-        height: win.minimized ? 54 : win.height,
-        zIndex: isActive ? 90 : 70,
-        ...shell({
-          overflow: "hidden",
-          boxShadow: isActive
-            ? "0 40px 120px rgba(0,0,0,0.30), 0 0 34px rgba(96,120,255,0.08), inset 0 1px 0 rgba(255,255,255,0.06)"
-            : "0 18px 60px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.04)",
-        }),
-      }}
-    >
-      <div
-        ref={dragRef}
-        onMouseDown={startDrag}
-        style={{
-          height: 54,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          padding: "0 12px 0 14px",
-          borderBottom: win.minimized ? "none" : "1px solid rgba(255,255,255,0.06)",
-          cursor: "grab",
-          background: "linear-gradient(180deg, rgba(18,24,50,0.92), rgba(9,12,24,0.92))",
-        }}
-      >
-        <div style={{ ...titleCaps(13), letterSpacing: 2.4 }}>{win.title}</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => onMinimize(win.id)} style={miniButtonStyle()}><Minus size={15} /></button>
-          <button style={miniButtonStyle()}><Maximize2 size={14} /></button>
-          <button onClick={() => onClose(win.id)} style={miniButtonStyle()}><X size={15} /></button>
+    <div className="rounded-[32px] border border-white/10 bg-[#08131c]/85 p-5 backdrop-blur-2xl md:p-6">
+      <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.28em] text-white/35">
+            Fenêtre isolée
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold text-white/95">
+            Plan du jardin — vue indépendante
+          </h2>
+          <p className="mt-2 text-sm text-white/55">
+            Le plan est ici séparé du reste de l’interface pour une lecture plus
+            claire et un vrai fonctionnement modulaire.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={onGoDashboard}
+            className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-white/75 transition hover:bg-white/[0.08]"
+          >
+            Retour accueil
+          </button>
+          <button
+            onClick={onClose}
+            className="inline-flex items-center gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-300/12 px-4 py-3 text-sm font-medium text-emerald-100 transition hover:bg-emerald-300/18"
+          >
+            <Minimize2 className="h-4 w-4" />
+            Réintégrer
+          </button>
         </div>
       </div>
 
-      {!win.minimized ? (
-        <>
-          <div style={{ height: `calc(100% - 54px)`, overflow: "auto", padding: 14 }}>{children}</div>
-          <div
-            ref={resizeRef}
-            onMouseDown={startResize}
+      <div className="grid grid-cols-12 gap-4">
+        <MapZone className="col-span-12 h-40 xl:col-span-8" label="Zone centrale du plan" tone="emerald" />
+        <MapZone className="col-span-12 h-32 md:col-span-6 xl:col-span-4" label="Légende / repères" tone="cyan" />
+        <MapZone className="col-span-12 h-32 md:col-span-4" label="Secteur 1" tone="sky" />
+        <MapZone className="col-span-12 h-32 md:col-span-4" label="Secteur 2" tone="emerald" />
+        <MapZone className="col-span-12 h-32 md:col-span-4" label="Secteur 3" tone="violet" />
+        <MapZone className="col-span-12 h-28 md:col-span-3" label="Accès" tone="cyan" />
+        <MapZone className="col-span-12 h-28 md:col-span-3" label="Repère A" tone="sky" />
+        <MapZone className="col-span-12 h-28 md:col-span-3" label="Repère B" tone="emerald" />
+        <MapZone className="col-span-12 h-28 md:col-span-3" label="Repère C" tone="violet" />
+      </div>
+    </div>
+  );
+}
+
+function AnimatedBackground() {
+  const particles = Array.from({ length: 20 }, (_, i) => ({
+    id: i,
+    size: 40 + (i % 5) * 18,
+    left: `${(i * 13) % 100}%`,
+    top: `${(i * 19) % 100}%`,
+    delay: `${(i % 7) * 0.8}s`,
+    duration: `${8 + (i % 5) * 3}s`,
+  }));
+
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(26,43,60,0.65),transparent_40%),linear-gradient(180deg,#07111a_0%,#08131c_45%,#061019_100%)]" />
+      <div className="absolute inset-0 opacity-40">
+        {particles.map((p) => (
+          <span
+            key={p.id}
+            className="absolute rounded-full bg-white/10 blur-2xl animate-pulse"
             style={{
-              position: "absolute",
-              right: 6,
-              bottom: 6,
-              width: 18,
-              height: 18,
-              cursor: "nwse-resize",
-              background: "linear-gradient(135deg, transparent 45%, rgba(255,255,255,0.28) 45%, rgba(255,255,255,0.28) 55%, transparent 55%)",
-              opacity: 0.8,
+              width: p.size,
+              height: p.size,
+              left: p.left,
+              top: p.top,
+              animationDelay: p.delay,
+              animationDuration: p.duration,
             }}
           />
-        </>
-      ) : null}
-    </motion.div>
-  );
-}
-
-function miniButtonStyle() {
-  return {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    border: "1px solid rgba(182,204,255,0.10)",
-    background: "linear-gradient(180deg, rgba(23,30,64,0.74), rgba(9,12,25,0.92))",
-    color: "#eef2ff",
-    cursor: "pointer",
-    display: "grid",
-    placeItems: "center",
-  };
-}
-
-function CreateCaseModal({ openAt, onClose, onSave }) {
-  const [form, setForm] = useState({ name: "", crop: "Nouvelle culture", zone: "Nouvelle zone", exposure: "Mi-ombre", note: "" });
-
-  useEffect(() => {
-    if (openAt) {
-      setForm({ name: "", crop: "Nouvelle culture", zone: "Nouvelle zone", exposure: "Mi-ombre", note: "" });
-    }
-  }, [openAt]);
-
-  if (!openAt) return null;
-
-  function submit(e) {
-    e.preventDefault();
-    if (!form.name.trim()) return;
-    onSave({ ...form, x: openAt.x, y: openAt.y });
-  }
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(4,7,16,0.56)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", zIndex: 60, display: "grid", placeItems: "center", padding: 20 }}>
-      <div style={{ ...shell({ padding: 20, width: "100%", maxWidth: 520 }) }}>
-        <div style={{ ...titleCaps(18), marginBottom: 8 }}>Nouvelle case</div>
-        <div style={{ color: "rgba(214,222,255,0.62)", lineHeight: 1.6, marginBottom: 18 }}>Tu as cliqué sur le plan. On enregistre d’abord la case ici, puis on la branchera exactement où il faut.</div>
-        <form onSubmit={submit}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} style={fieldStyle()} placeholder="Nom de la case" />
-            <input value={form.crop} onChange={(e) => setForm((f) => ({ ...f, crop: e.target.value }))} style={fieldStyle()} placeholder="Culture" />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
-            <input value={form.zone} onChange={(e) => setForm((f) => ({ ...f, zone: e.target.value }))} style={fieldStyle()} placeholder="Zone" />
-            <select value={form.exposure} onChange={(e) => setForm((f) => ({ ...f, exposure: e.target.value }))} style={fieldStyle()}>
-              {["Mi-ombre", "Bonne lumière", "Chaud / protégé"].map((o) => <option key={o} value={o} style={{ background: "#0b1022", color: "#eef2ff" }}>{o}</option>)}
-            </select>
-          </div>
-          <textarea value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} style={{ ...fieldStyle(), height: 90, marginTop: 12, paddingTop: 12, resize: "vertical" }} placeholder="Note" />
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
-            <button type="button" onClick={onClose} style={{ ...fieldStyle(), width: 120, cursor: "pointer", fontWeight: 700 }}>Annuler</button>
-            <button type="submit" style={{ width: 160, height: 46, borderRadius: 12, border: "1px solid rgba(138,160,255,0.26)", background: "linear-gradient(180deg, rgba(86,100,190,0.90), rgba(35,42,95,0.95))", color: "#fff8ef", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>Créer la case</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function renderWindowContent(mode, cases) {
-  const texts = {
-    zone: "Lecture de la zone sélectionnée. Ici on branchera plus tard les vraies actions contextuelles.",
-    suggestion: "Déplacer 3 pots vers la zone Est et garder la zone chaude pour les piments.",
-    today: "Tailler les fraises, surveiller l’humidité du matin et vérifier la lumière des semis prioritaires.",
-    status: `Enregistré • ${cases.length} case(s) • restauration locale active.`,
-  };
-
-  if (mode === "plan") {
-    return (
-      <div style={{ display: "grid", gap: 14, height: "100%" }}>
-        <div style={soft({ padding: 16, background: "linear-gradient(180deg, rgba(10,16,38,0.26), rgba(6,10,24,0.38))" })}>
-          <div style={{ ...titleCaps(14), marginBottom: 8 }}>Plan isolé du potager</div>
-          <div style={{ color: "rgba(232,238,255,0.72)", lineHeight: 1.6 }}>
-            Cette fenêtre doit devenir l’espace dédié au plan, indépendant de l’accueil, pour travailler les cases, les pots et la disposition générale.
-          </div>
-        </div>
-        <div
-          style={{
-            flex: 1,
-            minHeight: 320,
-            borderRadius: 20,
-            border: "1px solid rgba(182,204,255,0.12)",
-            background: "linear-gradient(180deg, rgba(10,16,34,0.22), rgba(6,10,22,0.34))",
-            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.03)",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          <div style={{ position: "absolute", inset: 18, borderRadius: 18, border: "1px solid rgba(181,202,255,0.14)", background: "linear-gradient(180deg, rgba(8,12,24,0.14), rgba(8,12,24,0.04))" }} />
-          <div style={{ position: "absolute", left: "9%", top: "12%", width: "70%", height: "62%", borderRadius: 18, border: "1px solid rgba(181,202,255,0.18)", background: "rgba(10,16,30,0.08)" }} />
-          <div style={{ position: "absolute", right: "7%", top: "14%", width: "11%", height: "14%", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }} />
-          <div style={{ position: "absolute", left: "14%", top: "20%", width: "14%", height: "16%", borderRadius: 12, background: "rgba(120,190,120,0.18)", border: "1px solid rgba(170,225,170,0.18)" }} />
-          <div style={{ position: "absolute", left: "31%", top: "20%", width: "12%", height: "16%", borderRadius: 12, background: "rgba(160,130,220,0.16)", border: "1px solid rgba(200,185,255,0.16)" }} />
-          <div style={{ position: "absolute", left: "46%", top: "20%", width: "14%", height: "16%", borderRadius: 12, background: "rgba(120,190,120,0.18)", border: "1px solid rgba(170,225,170,0.18)" }} />
-          <div style={{ position: "absolute", left: "14%", top: "40%", width: "14%", height: "15%", borderRadius: 12, background: "rgba(120,190,120,0.18)", border: "1px solid rgba(170,225,170,0.18)" }} />
-          <div style={{ position: "absolute", left: "31%", top: "40%", width: "12%", height: "15%", borderRadius: 12, background: "rgba(255,176,112,0.14)", border: "1px solid rgba(255,210,156,0.14)" }} />
-          <div style={{ position: "absolute", left: "46%", top: "40%", width: "14%", height: "15%", borderRadius: 12, background: "rgba(160,130,220,0.16)", border: "1px solid rgba(200,185,255,0.16)" }} />
-          <div style={{ position: "absolute", left: 26, bottom: 28, display: "flex", gap: 10 }}>
-            {[0, 1, 2].map((i) => (
-              <div key={i} style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(255,215,140,0.72)", boxShadow: "0 0 12px rgba(255,215,140,0.18)" }} />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (mode === "pots") {
-    return (
-      <div style={{ display: "grid", gap: 14 }}>
-        <div style={soft({ padding: 18 })}>
-          <div style={{ ...titleCaps(15), marginBottom: 12 }}>Ajouter des pots</div>
-          <div style={{ color: "#eef2ff", fontSize: 14, lineHeight: 1.86 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-              <span>Nombre de pots:</span>
-              <div style={{ display: "flex", gap: 8 }}>{[1, 3, 5].map((n) => <span key={n} style={{ ...soft({ padding: "6px 10px", borderRadius: 10, minWidth: 18, textAlign: "center" }), fontWeight: 800 }}>{n}</span>)}</div>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginTop: 8 }}>
-              <span>Diamètre du pot</span>
-              <div style={{ display: "flex", gap: 8 }}>{["20 cm", "30 cm", "40 cm"].map((d) => <span key={d} style={{ ...soft({ padding: "6px 8px", borderRadius: 10 }), fontWeight: 800, fontSize: 12 }}>{d}</span>)}</div>
-            </div>
-            <div style={{ marginTop: 10, textAlign: "center" }}>Suggestion : Planter du Basilic</div>
-          </div>
-        </div>
-        <button style={{ width: "100%", height: 48, borderRadius: 14, border: "1px solid rgba(138,160,255,0.26)", background: "linear-gradient(180deg, rgba(86,100,190,0.90), rgba(35,42,95,0.95))", color: "#fff8ef", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>Créer les pots</button>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: "grid", gap: 14 }}>
-      <div style={soft({ padding: 18 })}>
-        <div style={{ color: "#eef2ff", lineHeight: 1.72 }}>{texts[mode] || texts.status}</div>
-      </div>
-      <div style={soft({ padding: 14, maxHeight: 220, overflow: "auto" })}>
-        <div style={{ ...titleCaps(14), marginBottom: 10 }}>Cases enregistrées</div>
-        <div style={{ display: "grid", gap: 8 }}>
-          {cases.map((c) => (
-            <div key={c.id} style={{ display: "grid", gap: 2, padding: "8px 10px", borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-              <strong style={{ color: "#eef2ff", fontSize: 14 }}>{c.name}</strong>
-              <span style={{ color: "rgba(214,222,255,0.62)", fontSize: 13 }}>{c.crop} · {c.zone}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function createWindow(mode, existingCount) {
-  const titleMap = {
-    zone: "Zone actuelle",
-    plan: "Plan du jardin",
-    suggestion: "IA Suggestion",
-    today: "Aujourd’hui",
-    status: "Statut",
-    pots: "Ajouter des pots",
-    home: "Mon Potager",
-  };
-  return {
-    id: crypto.randomUUID(),
-    mode,
-    title: titleMap[mode] || "Fenêtre",
-    x: mode === "home" ? 140 : 250 + existingCount * 28,
-    y: mode === "home" ? 94 : 138 + existingCount * 24,
-    width: mode === "home" ? 880 : mode === "pots" ? 430 : 420,
-    height: mode === "home" ? 560 : mode === "pots" ? 380 : 340,
-    minimized: false,
-    closed: false,
-  };
-}
-
-export default function App() {
-  const [cases, setCases] = useLocalStorageState(STORAGE_KEY, initialCases);
-  const [createAt, setCreateAt] = useState(null);
-  const [showUi, setShowUi] = useState(false);
-  const [windows, setWindows] = useState([]);
-  const [homeWindow, setHomeWindow] = useState(() => createWindow("home", 0));
-  const [activeId, setActiveId] = useState(null);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setShowUi(true), 1800);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  function saveCase(data) {
-    setCases((current) => [...current, { id: crypto.randomUUID(), ...data }]);
-    setCreateAt(null);
-  }
-
-  function openWindow(mode) {
-    setWindows((current) => {
-      const next = [...current, createWindow(mode, current.length + 1)];
-      setActiveId(next[next.length - 1].id);
-      return next;
-    });
-  }
-
-  function closeHomeWindow() {
-    setHomeWindow((current) => ({ ...current, closed: true }));
-    setActiveId((prev) => (prev === homeWindow.id ? null : prev));
-  }
-
-  function reopenHomeWindow() {
-    setHomeWindow((current) => ({ ...current, closed: false, minimized: false }));
-    setActiveId(homeWindow.id);
-  }
-
-  function minimizeHomeWindow() {
-    setHomeWindow((current) => ({ ...current, minimized: !current.minimized }));
-    setActiveId(homeWindow.id);
-  }
-
-  function moveHomeWindow(_, pos) {
-    setHomeWindow((current) => ({ ...current, ...pos }));
-  }
-
-  function resizeHomeWindow(_, size) {
-    setHomeWindow((current) => ({ ...current, ...size }));
-  }
-
-  function closeWindow(id) {
-    setWindows((current) => current.filter((w) => w.id !== id));
-    setActiveId((prev) => (prev === id ? null : prev));
-  }
-
-  function minimizeWindow(id) {
-    setWindows((current) => current.map((w) => (w.id === id ? { ...w, minimized: !w.minimized } : w)));
-    setActiveId(id);
-  }
-
-  function moveWindow(id, pos) {
-    setWindows((current) => current.map((w) => (w.id === id ? { ...w, ...pos } : w)));
-  }
-
-  function resizeWindow(id, size) {
-    setWindows((current) => current.map((w) => (w.id === id ? { ...w, ...size } : w)));
-  }
-
-  function focusWindow(id) {
-    setActiveId(id);
-    if (id === homeWindow.id) {
-      return;
-    }
-    setWindows((current) => {
-      const target = current.find((w) => w.id === id);
-      if (!target) return current;
-      return [...current.filter((w) => w.id !== id), target];
-    });
-  }
-
-  return (
-    <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden", color: "#eef2ff", fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      <img
-        src={REF_BG}
-        alt="Fond potager"
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          objectPosition: "50% 50%",
-          transform: "scale(1.01)",
-          filter: "saturate(1.06) contrast(1.06) brightness(0.99)",
-          display: "block",
-          pointerEvents: "none",
-          userSelect: "none",
-        }}
-      />
-      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(4,8,18,0.02), rgba(4,8,18,0.14))" }} />
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, rgba(255,255,255,0.035), transparent 46%)" }} />
-      <AmbientGlow />
-      <HouseLights />
-      <Fireflies />
-
-      <AnimatePresence>
-        {showUi && !homeWindow.closed ? (
-          <FloatingWindow
-            win={homeWindow}
-            isActive={activeId === homeWindow.id || activeId === null}
-            onFocus={() => focusWindow(homeWindow.id)}
-            onClose={closeHomeWindow}
-            onMinimize={minimizeHomeWindow}
-            onMove={moveHomeWindow}
-            onResize={resizeHomeWindow}
-          >
-            <HomeOverlay onOpenPanel={openWindow} onOpenCreate={setCreateAt} />
-          </FloatingWindow>
-        ) : null}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {windows.map((win) => (
-          <FloatingWindow
-            key={win.id}
-            win={win}
-            isActive={activeId === win.id}
-            onFocus={focusWindow}
-            onClose={closeWindow}
-            onMinimize={minimizeWindow}
-            onMove={moveWindow}
-            onResize={resizeWindow}
-          >
-            {renderWindowContent(win.mode, cases)}
-          </FloatingWindow>
         ))}
-      </AnimatePresence>
-
-      {homeWindow.closed ? (
-        <button
-          onClick={reopenHomeWindow}
-          style={{
-            position: "fixed",
-            left: 24,
-            bottom: 24,
-            zIndex: 95,
-            height: 46,
-            padding: "0 16px",
-            borderRadius: 14,
-            border: "1px solid rgba(182,204,255,0.14)",
-            background: "linear-gradient(180deg, rgba(13,20,46,0.88), rgba(6,10,24,0.94))",
-            color: "#eef2ff",
-            fontWeight: 800,
-            letterSpacing: 1.1,
-            cursor: "pointer",
-            boxShadow: "0 12px 34px rgba(0,0,0,0.28)",
-          }}
-        >
-          Rouvrir l’accueil
-        </button>
-      ) : null}
-
-      <AnimatePresence>{createAt ? <CreateCaseModal openAt={createAt} onClose={() => setCreateAt(null)} onSave={saveCase} /> : null}</AnimatePresence>
+      </div>
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:48px_48px] opacity-[0.08]" />
     </div>
   );
 }
